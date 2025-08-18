@@ -89,7 +89,15 @@ class ApiService {
   }
 
   async refreshToken() {
-    return this.request<{ token: string }>('/auth/refresh', { method: 'POST' });
+    const refreshToken = localStorage.getItem('refresh-token');
+    if (!refreshToken) {
+      throw new Error('No refresh token available');
+    }
+    
+    return this.request<{ token: string; refreshToken: string }>('/auth/refresh', {
+      method: 'POST',
+      body: JSON.stringify({ refreshToken }),
+    });
   }
 
   // Tenant Management (Super Admin)
@@ -270,9 +278,11 @@ class ApiService {
 }
 
 // API Instance with environment configuration
+import { config } from '@/config/environment';
+
 const apiConfig: ApiConfig = {
-  baseUrl: import.meta.env.VITE_API_BASE_URL || 'http://localhost:3000/api',
-  timeout: 30000, // 30 seconds
+  baseUrl: config.apiBaseUrl,
+  timeout: config.apiTimeout,
 };
 
 export const api = new ApiService(apiConfig);
