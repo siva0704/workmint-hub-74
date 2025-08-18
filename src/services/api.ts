@@ -1,5 +1,6 @@
 // API Service Layer for Backend Integration
 // Ready for MongoDB + JWT authentication
+import { config } from '@/config/environment';
 
 export interface ApiConfig {
   baseUrl: string;
@@ -25,6 +26,8 @@ export interface PaginatedResponse<T> extends ApiResponse<T[]> {
 class ApiService {
   private baseUrl: string;
   private timeout: number;
+  private isRefreshing = false;
+  private refreshPromise: Promise<any> | null = null;
 
   constructor(config: ApiConfig) {
     this.baseUrl = config.baseUrl;
@@ -46,8 +49,14 @@ class ApiService {
       defaultHeaders.Authorization = `Bearer ${token}`;
     }
 
+    // Add tenant scoping for multi-tenant isolation
+    const user = JSON.parse(localStorage.getItem('auth-storage') || '{}')?.state?.user;
+    if (user?.tenantId) {
+      defaultHeaders['X-Tenant-ID'] = user.tenantId;
+    }
+
     try {
-      const response = await fetch(url, {
+      let response = await fetch(url, {
         ...options,
         headers: {
           ...defaultHeaders,
@@ -55,6 +64,27 @@ class ApiService {
         },
         signal: AbortSignal.timeout(this.timeout),
       });
+
+      // Handle token expiry with automatic refresh
+      if (response.status === 401 && !endpoint.includes('/auth/')) {
+        const refreshed = await this.handleTokenRefresh();
+        if (refreshed) {
+          // Retry request with new token
+          defaultHeaders.Authorization = `Bearer ${refreshed.token}`;
+          response = await fetch(url, {
+            ...options,
+            headers: {
+              ...defaultHeaders,
+              ...options.headers,
+            },
+            signal: AbortSignal.timeout(this.timeout),
+          });
+        } else {
+          // Redirect to login
+          window.location.href = '/login';
+          throw new Error('Authentication failed');
+        }
+      }
 
       const data = await response.json();
 
@@ -69,6 +99,49 @@ class ApiService {
     }
   }
 
+  private async handleTokenRefresh(): Promise<{ token: string; refreshToken: string } | null> {
+    if (this.isRefreshing) {
+      return this.refreshPromise;
+    }
+
+    this.isRefreshing = true;
+    this.refreshPromise = this.refreshTokenRequest();
+
+    try {
+      const result = await this.refreshPromise;
+      return result;
+    } finally {
+      this.isRefreshing = false;
+      this.refreshPromise = null;
+    }
+  }
+
+  private async refreshTokenRequest(): Promise<{ token: string; refreshToken: string } | null> {
+    try {
+      const refreshToken = localStorage.getItem('refresh-token');
+      if (!refreshToken) return null;
+
+      const response = await fetch(`${this.baseUrl}/auth/refresh`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      });
+
+      if (!response.ok) return null;
+
+      const data = await response.json();
+      
+      // Update stored tokens
+      localStorage.setItem('auth-token', data.data.token);
+      localStorage.setItem('refresh-token', data.data.refreshToken);
+      
+      return data.data;
+    } catch (error) {
+      console.error('Token refresh failed:', error);
+      return null;
+    }
+  }
+
   // Authentication Endpoints
   async login(email: string, password: string) {
     return this.request<{ user: any; tenant: any; token: string }>('/auth/login', {
@@ -78,7 +151,7 @@ class ApiService {
   }
 
   async signup(signupData: any) {
-    return this.request<{ tenantId: string }>('/tenants/signup', {
+    return this.request<{ tenantId: string }>('/auth/signup', {
       method: 'POST',
       body: JSON.stringify(signupData),
     });
@@ -88,21 +161,9 @@ class ApiService {
     return this.request('/auth/logout', { method: 'POST' });
   }
 
-  async refreshToken() {
-    const refreshToken = localStorage.getItem('refresh-token');
-    if (!refreshToken) {
-      throw new Error('No refresh token available');
-    }
-    
-    return this.request<{ token: string; refreshToken: string }>('/auth/refresh', {
-      method: 'POST',
-      body: JSON.stringify({ refreshToken }),
-    });
-  }
-
   // Tenant Management (Super Admin)
   async getTenants(page: number = 1, limit: number = 10) {
-    return this.request<PaginatedResponse<any>>(`/sa/tenants?page=${page}&limit=${limit}`);
+    return this.request<any>(`/sa/tenants?page=${page}&limit=${limit}`);
   }
 
   async approveTenant(tenantId: string, reason?: string) {
@@ -125,7 +186,7 @@ class ApiService {
 
   // User Management
   async getUsers(page: number = 1, limit: number = 10) {
-    return this.request<PaginatedResponse<any>>(`/users?page=${page}&limit=${limit}`);
+    return this.request<any>(`/users?page=${page}&limit=${limit}`);
   }
 
   async createUser(userData: any) {
@@ -162,7 +223,7 @@ class ApiService {
 
   // Product Management
   async getProducts(page: number = 1, limit: number = 10) {
-    return this.request<PaginatedResponse<any>>(`/products?page=${page}&limit=${limit}`);
+    return this.request<any>(`/products?page=${page}&limit=${limit}`);
   }
 
   async createProduct(productData: any) {
@@ -212,7 +273,7 @@ class ApiService {
   // Task Management
   async getTasks(filters?: any) {
     const params = new URLSearchParams(filters);
-    return this.request<PaginatedResponse<any>>(`/tasks?${params}`);
+    return this.request<any>(`/tasks?${params}`);
   }
 
   async createTask(taskData: any) {
@@ -278,7 +339,6 @@ class ApiService {
 }
 
 // API Instance with environment configuration
-import { config } from '@/config/environment';
 
 const apiConfig: ApiConfig = {
   baseUrl: config.apiBaseUrl,

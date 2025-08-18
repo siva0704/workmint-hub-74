@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/auth';
-import { mockLogin } from '@/stores/mockData';
+import { useLogin } from '@/hooks/useApi';
 import { Eye, EyeOff, AlertCircle, Factory } from 'lucide-react';
 
 export const Login = () => {
@@ -20,7 +20,8 @@ export const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   
-  const { login } = useAuthStore();
+  const { login: authLogin } = useAuthStore();
+  const loginMutation = useLogin();
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -30,19 +31,26 @@ export const Login = () => {
     setError('');
 
     try {
-      const { user, tenant } = await mockLogin(formData.email, formData.password);
-      login(user, tenant);
-      
-      toast({
-        title: 'Login successful',
-        description: `Welcome back, ${user.name}!`
+      const response = await loginMutation.mutateAsync({
+        email: formData.email,
+        password: formData.password,
       });
+      
+      // Login with tokens
+      authLogin(
+        response.data.user, 
+        response.data.tenant,
+        {
+          token: response.data.token,
+          refreshToken: response.data.refreshToken,
+        }
+      );
       
       // Navigate to role-specific dashboard
       navigate('/dashboard');
-    } catch (err) {
-      setError('Invalid email or password');
-      console.error('Login error:', err);
+    } catch (error: any) {
+      setError(error.message || 'Invalid email or password');
+      console.error('Login error:', error);
     } finally {
       setIsLoading(false);
     }

@@ -8,10 +8,14 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { SignupForm } from '@/types';
+import { api } from '@/services/api';
+import { useToast } from '@/hooks/use-toast';
 
 export const Signup = () => {
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { toast } = useToast();
   const [formData, setFormData] = useState<SignupForm>({
     factoryName: '',
     address: '',
@@ -29,9 +33,23 @@ export const Signup = () => {
   };
 
   const handleSubmit = async () => {
-    // TODO: API call to create factory account
-    console.log('Submitting signup:', formData);
-    navigate('/pending-approval');
+    setIsSubmitting(true);
+    try {
+      await api.signup(formData);
+      toast({
+        title: 'Registration Submitted',
+        description: 'Your factory registration has been submitted for approval.',
+      });
+      navigate('/pending-approval');
+    } catch (error: any) {
+      toast({
+        title: 'Registration Failed',
+        description: error.message || 'Failed to submit registration',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const renderStep = () => {
@@ -244,7 +262,7 @@ export const Signup = () => {
                     handleSubmit();
                   }
                 }}
-                disabled={!isStepValid()}
+                disabled={!isStepValid() || isSubmitting}
                 className="flex-1 bg-mint-fresh hover:bg-mint-fresh/90 tap-target"
               >
                 {currentStep < 3 ? (
@@ -254,7 +272,7 @@ export const Signup = () => {
                   </>
                 ) : (
                   <>
-                    Create Account
+                    {isSubmitting ? 'Creating Account...' : 'Create Account'}
                     <CheckCircle className="ml-2 h-4 w-4" />
                   </>
                 )}

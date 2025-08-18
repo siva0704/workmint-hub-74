@@ -22,8 +22,9 @@ export const useLogin = () => {
     mutationFn: ({ email, password }: { email: string; password: string }) =>
       api.login(email, password),
     onSuccess: (data) => {
-      // Store token
+      // Store tokens
       localStorage.setItem('auth-token', data.data.token);
+      localStorage.setItem('refresh-token', data.data.refreshToken);
       // Invalidate and refetch user data
       queryClient.invalidateQueries();
       toast({
@@ -43,6 +44,7 @@ export const useLogout = () => {
     mutationFn: () => api.logout(),
     onSuccess: () => {
       localStorage.removeItem('auth-token');
+      localStorage.removeItem('refresh-token');
       queryClient.clear();
       toast({
         title: 'Logged Out',

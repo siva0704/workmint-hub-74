@@ -43,6 +43,8 @@ export const useAuthStore = create<AuthStore>()(
       logout: () => {
         localStorage.removeItem('auth-token');
         localStorage.removeItem('refresh-token');
+        // Clear all cached data
+        localStorage.removeItem('offline-data');
         set({
           user: null,
           tenant: null,
