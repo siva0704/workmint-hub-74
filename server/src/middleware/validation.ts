@@ -39,7 +39,12 @@ export const validateSignup = [
     }
     return true;
   }),
-  body('acceptTerms').equals('true'),
+  body('acceptTerms').isBoolean().custom((value) => {
+    if (!value) {
+      throw new Error('You must accept the terms and conditions');
+    }
+    return true;
+  }),
   handleValidationErrors,
 ];
 

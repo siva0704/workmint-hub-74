@@ -1,5 +1,5 @@
 import { Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
+import jwt, { Secret, SignOptions } from 'jsonwebtoken';
 import { User } from '../models/User';
 import { Tenant } from '../models/Tenant';
 import { RefreshToken } from '../models/RefreshToken';
@@ -13,7 +13,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     // Find user and populate tenant
     const user = await User.findOne({ email, isActive: true }).populate('tenantId');
     
-    if (!user || !(await user.comparePassword(password))) {
+    if (!user || !(await (user as any).comparePassword(password))) {
       res.status(401).json({
         success: false,
         message: 'Invalid email or password',
@@ -36,14 +36,14 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     // Generate tokens
     const accessToken = jwt.sign(
       { userId: user._id, role: user.role, tenantId: user.tenantId },
-      config.jwt.secret,
-      { expiresIn: config.jwt.expiresIn }
+      config.jwt.secret as Secret,
+      { expiresIn: config.jwt.expiresIn as SignOptions['expiresIn'] }
     );
 
     const refreshTokenValue = jwt.sign(
       { userId: user._id },
-      config.jwt.refreshSecret,
-      { expiresIn: config.jwt.refreshExpiresIn }
+      config.jwt.refreshSecret as Secret,
+      { expiresIn: config.jwt.refreshExpiresIn as SignOptions['expiresIn'] }
     );
 
     // Save refresh token
@@ -116,8 +116,8 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     // Generate new access token
     const newAccessToken = jwt.sign(
       { userId: user._id, role: user.role, tenantId: user.tenantId },
-      config.jwt.secret,
-      { expiresIn: config.jwt.expiresIn }
+      config.jwt.secret as Secret,
+      { expiresIn: config.jwt.expiresIn as SignOptions['expiresIn'] }
     );
 
     res.json({
@@ -201,7 +201,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
     });
 
     // Generate auto ID for factory admin
-    const autoId = await User.generateAutoId('factory_admin', tenant._id.toString());
+    const autoId = await (User as any).generateAutoId('factory_admin', (tenant._id as any).toString());
 
     // Create factory admin user
     const user = await User.create({

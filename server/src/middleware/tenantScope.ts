@@ -22,7 +22,8 @@ export const enforceTenantScope = (
 
   // Add tenant filter to query parameters
   if (req.method === 'GET') {
-    req.query.tenantId = req.user.tenantId;
+    // ensure string type for query assignment
+    (req.query as any).tenantId = String(req.user.tenantId);
   }
 
   // Add tenant ID to request body for create/update operations

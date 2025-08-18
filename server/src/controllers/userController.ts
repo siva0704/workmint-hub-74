@@ -68,7 +68,7 @@ export const createUser = async (req: AuthRequest, res: Response): Promise<void>
     }
 
     // Generate auto ID
-    const autoId = await User.generateAutoId(role, tenantId);
+    const autoId = await (User as any).generateAutoId(role, tenantId);
 
     // Create user
     const user = await User.create({
@@ -206,7 +206,7 @@ export const bulkImportUsers = async (req: AuthRequest, res: Response): Promise<
         const userData = users[i];
         
         // Generate auto ID
-        const autoId = await User.generateAutoId(userData.role, tenantId);
+        const autoId = await (User as any).generateAutoId(userData.role, tenantId);
 
         await User.create({
           autoId,

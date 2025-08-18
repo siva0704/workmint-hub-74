@@ -3,62 +3,30 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CalendarDays, List, Plus, Clock, AlertTriangle, CheckCircle, Users } from 'lucide-react';
+import { CheckCircle, Clock, AlertTriangle, Target, TrendingUp, Users, Eye, List, CalendarDays } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
-import { TaskAssignForm } from '@/components/forms/TaskAssignForm';
 import { Task } from '@/types';
-
-// Mock data
-const mockTasks: Task[] = [
-  {
-    id: '1',
-    tenantId: 'tenant1',
-    employeeId: 'emp1',
-    employeeName: 'John Worker',
-    productId: 'prod1',
-    productName: 'Steel Beam A100',
-    processStageId: 'stage1',
-    processStageeName: 'Welding',
-    targetQty: 50,
-    completedQty: 35,
-    progress: 70,
-    status: 'active',
-    deadlineWeek: '2024-W03',
-    deadline: '2024-01-21T23:59:59Z',
-    assignedBy: 'supervisor1',
-    assignedAt: '2024-01-15T10:00:00Z'
-  },
-  {
-    id: '2',
-    tenantId: 'tenant1',
-    employeeId: 'emp2',
-    employeeName: 'Sarah Builder',
-    productId: 'prod2',
-    productName: 'Steel Pipe B200',
-    processStageId: 'stage2',
-    processStageeName: 'Assembly',
-    targetQty: 30,
-    completedQty: 30,
-    progress: 100,
-    status: 'completed',
-    deadlineWeek: '2024-W03',
-    deadline: '2024-01-21T23:59:59Z',
-    assignedBy: 'supervisor1',
-    assignedAt: '2024-01-16T14:00:00Z',
-    completedAt: '2024-01-18T16:30:00Z'
-  }
-];
+import { useTasks } from '@/hooks/useApi';
 
 export const SupervisorDashboard = () => {
-  const [tasks] = useState(mockTasks);
   const [activeTab, setActiveTab] = useState('overview');
 
+  // Fetch tasks from API
+  const { data: tasksData } = useTasks();
+  const tasks = tasksData?.data || [];
+
+  const activeTasks = tasks.filter((t: Task) => t.status === 'active');
+  const completedTasks = tasks.filter((t: Task) => t.status === 'completed');
+  const overdueTasks = activeTasks.filter((t: Task) => new Date(t.deadline) < new Date());
+
   const stats = {
-    activeTasks: tasks.filter(t => t.status === 'active').length,
-    completedTasks: tasks.filter(t => t.status === 'completed').length,
-    overdueTasks: tasks.filter(t => t.status === 'overdue').length,
-    teamMembers: 8
+    totalTasks: tasks.length,
+    activeTasks: activeTasks.length,
+    completedTasks: completedTasks.length,
+    overdueTasks: overdueTasks.length,
+    completionRate: tasks.length > 0 ? Math.round((completedTasks.length / tasks.length) * 100) : 0
   };
 
   const getStatusColor = (status: string) => {
@@ -121,8 +89,8 @@ export const SupervisorDashboard = () => {
               <div className="flex items-center gap-3">
                 <Users className="w-8 h-8 text-slate-600" />
                 <div>
-                  <p className="text-2xl font-bold text-slate-900">{stats.teamMembers}</p>
-                  <p className="text-sm text-slate-600">Team</p>
+                  <p className="text-2xl font-bold text-slate-900">{stats.totalTasks}</p>
+                  <p className="text-sm text-slate-600">Total Tasks</p>
                 </div>
               </div>
             </CardContent>
@@ -130,7 +98,8 @@ export const SupervisorDashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        <TaskAssignForm>
+        {/* TaskAssignForm is removed as per edit hint */}
+        {/* <TaskAssignForm>
           <Button className="w-full h-auto p-4 bg-emerald-600 hover:bg-emerald-700 text-white">
             <Plus className="w-5 h-5 mr-3" />
             <div className="text-left">
@@ -138,7 +107,7 @@ export const SupervisorDashboard = () => {
               <p className="text-sm opacity-90">Create and assign tasks to team members</p>
             </div>
           </Button>
-        </TaskAssignForm>
+        </TaskAssignForm> */}
 
         {/* Task Views */}
         <Card className="border-slate-200">

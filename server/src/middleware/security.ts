@@ -1,6 +1,7 @@
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { Request, Response, NextFunction } from 'express';
+import type { CorsOptions } from 'cors';
 
 // Rate limiting
 export const createRateLimit = (windowMs: number, max: number, message: string) => {
@@ -56,8 +57,20 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
 };
 
 // CORS configuration
-export const corsOptions = {
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+const allowedOrigins: string[] = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+  .split(',')
+  .map(o => o.trim())
+  .filter(Boolean);
+
+export const corsOptions: CorsOptions = {
+  origin: (origin, callback) => {
+    // Allow requests with no origin (e.g., mobile apps, curl, Postman)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('Not allowed by CORS'));
+  },
   credentials: true,
+  methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Tenant-ID'],
   optionsSuccessStatus: 200,
 };

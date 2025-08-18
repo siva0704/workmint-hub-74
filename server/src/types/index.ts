@@ -1,4 +1,5 @@
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
+import { Request } from 'express';
 
 export type UserRole = 'super_admin' | 'factory_admin' | 'supervisor' | 'employee';
 
@@ -9,7 +10,7 @@ export interface IUser extends Document {
   mobile: string;
   password: string;
   role: UserRole;
-  tenantId?: string;
+  tenantId?: Types.ObjectId;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
@@ -30,7 +31,7 @@ export interface ITenant extends Document {
 }
 
 export interface IProduct extends Document {
-  tenantId: string;
+  tenantId: Types.ObjectId;
   name: string;
   description: string;
   isActive: boolean;
@@ -39,8 +40,8 @@ export interface IProduct extends Document {
 }
 
 export interface IProcessStage extends Document {
-  productId: string;
-  tenantId: string;
+  productId: Types.ObjectId;
+  tenantId: Types.ObjectId;
   name: string;
   description: string;
   order: number;
@@ -50,10 +51,10 @@ export interface IProcessStage extends Document {
 }
 
 export interface ITask extends Document {
-  tenantId: string;
-  employeeId: string;
-  productId: string;
-  processStageId: string;
+  tenantId: Types.ObjectId;
+  employeeId: Types.ObjectId;
+  productId: Types.ObjectId;
+  processStageId: Types.ObjectId;
   targetQty: number;
   completedQty: number;
   status: 'active' | 'completed' | 'confirmed' | 'rejected' | 'overdue';
@@ -61,7 +62,7 @@ export interface ITask extends Document {
   deadline: Date;
   notes?: string;
   rejectionReason?: string;
-  assignedBy: string;
+  assignedBy: Types.ObjectId;
   assignedAt: Date;
   completedAt?: Date;
   confirmedAt?: Date;
@@ -69,7 +70,7 @@ export interface ITask extends Document {
 }
 
 export interface IRefreshToken extends Document {
-  userId: string;
+  userId: Types.ObjectId;
   token: string;
   expiresAt: Date;
   createdAt: Date;
@@ -79,6 +80,7 @@ export interface AuthRequest extends Request {
   user?: {
     id: string;
     role: UserRole;
-    tenantId?: string;
+    tenantId?: string | Types.ObjectId;
   };
+  file?: Express.Multer.File;
 }

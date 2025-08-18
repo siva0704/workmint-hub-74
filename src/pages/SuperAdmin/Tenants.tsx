@@ -1,70 +1,43 @@
-import { useState, useEffect } from 'react';
-import { Badge } from '@/components/ui/badge';
-import { Card, CardContent } from '@/components/ui/card';
+import { useState } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Building2, Users, Phone, Mail, Calendar, Snowflake, Play } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Building2, Clock, CheckCircle, XCircle, Search, Filter, Eye } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
-import { EntityList } from '@/components/ui/entity-list';
 import { TenantApprovalForm } from '@/components/forms/TenantApprovalForm';
-import { useToast } from '@/hooks/use-toast';
 import { Tenant } from '@/types';
-import { mockAPI, mockTenants } from '@/stores/mockData';
+import { useTenants, useApproveTenant, useRejectTenant } from '@/hooks/useApi';
 
 export const SuperAdminTenants = () => {
-  const [tenants, setTenants] = useState<Tenant[]>([]);
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedTenant, setSelectedTenant] = useState<Tenant | null>(null);
+  const [activeTab, setActiveTab] = useState('pending');
 
-  useEffect(() => {
-    loadTenants();
-  }, []);
+  // Fetch tenants from API
+  const { data: tenantsData, refetch } = useTenants(1, 100);
+  const approveMutation = useApproveTenant();
+  const rejectMutation = useRejectTenant();
 
-  const loadTenants = async () => {
-    setLoading(true);
-    try {
-      const data = await mockAPI.getTenants();
-      setTenants(data);
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to load tenants',
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
+  const tenants = tenantsData?.data || [];
+
+  const filteredTenants = tenants.filter((tenant: Tenant) => 
+    tenant.factoryName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    tenant.ownerEmail.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const pendingTenants = filteredTenants.filter((t: Tenant) => t.status === 'pending');
+  const activeTenants = filteredTenants.filter((t: Tenant) => t.status === 'active');
+  const rejectedTenants = filteredTenants.filter((t: Tenant) => t.status === 'rejected');
+  const frozenTenants = filteredTenants.filter((t: Tenant) => t.status === 'frozen');
+
+  const handleApprove = (updatedTenant: Tenant) => {
+    refetch();
   };
 
-  const handleTenantUpdate = (updatedTenant: Tenant) => {
-    setTenants(prev => 
-      prev.map(t => t.id === updatedTenant.id ? updatedTenant : t)
-    );
-  };
-
-  const handleFreezeTenant = async (tenantId: string) => {
-    try {
-      // Mock freeze functionality
-      const tenant = tenants.find(t => t.id === tenantId);
-      if (tenant) {
-        const updatedTenant = { 
-          ...tenant, 
-          status: tenant.status === 'frozen' ? 'active' : 'frozen' 
-        } as Tenant;
-        setTenants(prev => 
-          prev.map(t => t.id === tenantId ? updatedTenant : t)
-        );
-        toast({
-          title: `Tenant ${updatedTenant.status === 'frozen' ? 'Frozen' : 'Activated'}`,
-          description: `${tenant.factoryName} has been ${updatedTenant.status}.`,
-        });
-      }
-    } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to update tenant status',
-        variant: 'destructive',
-      });
-    }
+  const handleReject = (updatedTenant: Tenant) => {
+    refetch();
   };
 
   const getStatusColor = (status: string) => {
@@ -90,19 +63,19 @@ export const SuperAdminTenants = () => {
             
             <div className="grid grid-cols-2 gap-2 text-sm">
               <div className="flex items-center gap-1">
-                <Users className="w-3 h-3" />
+                {/* <Users className="w-3 h-3" /> */}
                 <span>{tenant.workersCount} workers</span>
               </div>
               <div className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
+                {/* <Calendar className="w-3 h-3" /> */}
                 <span>{new Date(tenant.createdAt).toLocaleDateString()}</span>
               </div>
               <div className="flex items-center gap-1">
-                <Mail className="w-3 h-3" />
+                {/* <Mail className="w-3 h-3" /> */}
                 <span className="truncate">{tenant.ownerEmail}</span>
               </div>
               <div className="flex items-center gap-1">
-                <Phone className="w-3 h-3" />
+                {/* <Phone className="w-3 h-3" /> */}
                 <span>{tenant.phone}</span>
               </div>
             </div>
@@ -125,104 +98,162 @@ export const SuperAdminTenants = () => {
           {tenant.status === 'pending' && (
             <TenantApprovalForm 
               tenant={tenant}
-              onApprove={handleTenantUpdate}
-              onReject={handleTenantUpdate}
+              onApprove={handleApprove}
+              onReject={handleReject}
             />
           )}
           
-          {(tenant.status === 'active' || tenant.status === 'frozen') && (
-            <Button
-              size="sm"
-              variant={tenant.status === 'frozen' ? 'default' : 'outline'}
-              onClick={() => handleFreezeTenant(tenant.id)}
-              className="flex-1"
-            >
-              {tenant.status === 'frozen' ? (
-                <>
-                  <Play className="w-4 h-4 mr-1" />
-                  Activate
-                </>
-              ) : (
-                <>
-                  <Snowflake className="w-4 h-4 mr-1" />
-                  Freeze
-                </>
-              )}
-            </Button>
-          )}
+
         </div>
       </CardContent>
     </Card>
   );
 
-  const filterOptions = [
-    { key: 'status' as keyof Tenant, value: 'pending', label: 'Pending' },
-    { key: 'status' as keyof Tenant, value: 'active', label: 'Active' },
-    { key: 'status' as keyof Tenant, value: 'rejected', label: 'Rejected' },
-    { key: 'status' as keyof Tenant, value: 'frozen', label: 'Frozen' }
-  ];
 
-  const stats = {
-    total: tenants.length,
-    pending: tenants.filter(t => t.status === 'pending').length,
-    active: tenants.filter(t => t.status === 'active').length,
-    rejected: tenants.filter(t => t.status === 'rejected').length,
-    frozen: tenants.filter(t => t.status === 'frozen').length
-  };
 
   return (
     <MobileLayout>
       <div className="p-4 space-y-6">
-        <div>
-          <h1 className="text-hero">Tenant Management</h1>
-          <p className="text-muted-foreground mt-1">Manage all factory tenants and applications</p>
+        {/* Header */}
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-hero">Factory Management</h1>
+            <p className="text-muted-foreground mt-1">Manage factory registrations and approvals</p>
+          </div>
         </div>
 
-        {/* Stats Overview */}
-        <div className="grid grid-cols-2 gap-4">
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-slate-600">{stats.pending}</p>
-              <p className="text-sm text-muted-foreground">Pending</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-emerald-600">{stats.active}</p>
-              <p className="text-sm text-muted-foreground">Active</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-red-600">{stats.rejected}</p>
-              <p className="text-sm text-muted-foreground">Rejected</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4 text-center">
-              <p className="text-2xl font-bold text-blue-600">{stats.frozen}</p>
-              <p className="text-sm text-muted-foreground">Frozen</p>
-            </CardContent>
-          </Card>
+        {/* Search and Filters */}
+        <div className="space-y-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+            <Input
+              placeholder="Search factories..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
+          </div>
         </div>
 
-        {/* Tenant List */}
-        <EntityList
-          title="All Tenants"
-          data={tenants}
-          loading={loading}
-          searchPlaceholder="Search factories..."
-          searchKeys={['factoryName', 'ownerEmail', 'address']}
-          filterOptions={filterOptions}
-          renderItem={renderTenantItem}
-          onRefresh={loadTenants}
-          emptyState={
-            <div className="text-center py-8 text-muted-foreground">
+        {/* Tabs */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="pending" className="flex items-center gap-2">
+              <Clock className="w-4 h-4" />
+              Pending ({pendingTenants.length})
+            </TabsTrigger>
+            <TabsTrigger value="active" className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" />
+              Active ({activeTenants.length})
+            </TabsTrigger>
+            <TabsTrigger value="rejected" className="flex items-center gap-2">
+              <XCircle className="w-4 h-4" />
+              Rejected ({rejectedTenants.length})
+            </TabsTrigger>
+            <TabsTrigger value="frozen" className="flex items-center gap-2">
+              <Building2 className="w-4 h-4" />
+              Frozen ({frozenTenants.length})
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="pending" className="space-y-4">
+            {pendingTenants.map((tenant) => (
+              <Card key={tenant.id}>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{tenant.factoryName}</h3>
+                      <p className="text-sm text-muted-foreground">{tenant.address}</p>
+                      <div className="grid grid-cols-2 gap-2 text-sm mt-2">
+                        <div className="flex items-center gap-1">
+                          <span>{tenant.workersCount} workers</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span>{new Date(tenant.createdAt).toLocaleDateString()}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span className="truncate">{tenant.ownerEmail}</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <span>{tenant.phone}</span>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <TenantApprovalForm 
+                        tenant={tenant}
+                        onApprove={handleApprove}
+                        onReject={handleReject}
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </TabsContent>
+
+          <TabsContent value="active" className="space-y-4">
+            {activeTenants.map((tenant) => (
+              <Card key={tenant.id}>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{tenant.factoryName}</h3>
+                      <p className="text-sm text-muted-foreground">{tenant.address}</p>
+                      <Badge variant="default" className="mt-2">Active</Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </TabsContent>
+
+          <TabsContent value="rejected" className="space-y-4">
+            {rejectedTenants.map((tenant) => (
+              <Card key={tenant.id}>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{tenant.factoryName}</h3>
+                      <p className="text-sm text-muted-foreground">{tenant.address}</p>
+                      <Badge variant="destructive" className="mt-2">Rejected</Badge>
+                      {tenant.rejectionReason && (
+                        <p className="text-sm text-muted-foreground mt-1">
+                          Reason: {tenant.rejectionReason}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </TabsContent>
+
+          <TabsContent value="frozen" className="space-y-4">
+            {frozenTenants.map((tenant) => (
+              <Card key={tenant.id}>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-start">
+                    <div className="flex-1">
+                      <h3 className="font-semibold">{tenant.factoryName}</h3>
+                      <p className="text-sm text-muted-foreground">{tenant.address}</p>
+                      <Badge variant="secondary" className="mt-2">Frozen</Badge>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </TabsContent>
+        </Tabs>
+
+        {tenants.length === 0 && (
+          <Card>
+            <CardContent className="text-center py-8">
               <Building2 className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No factory applications found</p>
-            </div>
-          }
-        />
+              <p className="text-muted-foreground">No tenants found</p>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </MobileLayout>
   );

@@ -1,47 +1,72 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, XCircle, Clock, Factory, Users, Settings } from 'lucide-react';
+import { Clock, Factory, Users, Activity, CheckCircle, XCircle, Building2 } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
-import { Tenant } from '@/types';
+import { useTenants, useApproveTenant, useRejectTenant } from '@/hooks/useApi';
 
-// Mock data
-const mockPendingTenants: Tenant[] = [
+// Mock data - replace with API calls
+const mockPendingTenants = [
   {
-    id: '1',
-    factoryName: 'Steel Works Manufacturing',
-    address: '123 Industrial Ave, Detroit, MI',
-    workersCount: 150,
+    id: 'tenant1',
+    factoryName: 'SteelWorks Manufacturing',
+    address: '123 Industrial Ave, Manufacturing District',
+    workersCount: 45,
     ownerEmail: 'owner@steelworks.com',
     phone: '+1-555-0123',
     status: 'pending',
     createdAt: '2024-01-15T10:30:00Z'
   },
   {
-    id: '2',
-    factoryName: 'Precision Electronics',
-    address: '456 Tech Park, Austin, TX',
-    workersCount: 75,
-    ownerEmail: 'admin@precision.com',
-    phone: '+1-555-0124',
+    id: 'tenant2',
+    factoryName: 'Precision Metal Co.',
+    address: '456 Factory Blvd, Industrial Zone',
+    workersCount: 32,
+    ownerEmail: 'contact@precisionmetal.com',
+    phone: '+1-555-0456',
     status: 'pending',
     createdAt: '2024-01-14T14:20:00Z'
   }
 ];
 
 export const SuperAdminDashboard = () => {
-  const [pendingTenants] = useState(mockPendingTenants);
+  const [pendingTenants, setPendingTenants] = useState(mockPendingTenants);
+  const { data: tenantsData, refetch } = useTenants(1, 100);
+  const approveMutation = useApproveTenant();
+  const rejectMutation = useRejectTenant();
+
+  useEffect(() => {
+    if (tenantsData?.data) {
+      const pending = tenantsData.data.filter((tenant: any) => tenant.status === 'pending');
+      setPendingTenants(pending);
+    }
+  }, [tenantsData]);
 
   const handleApprove = (tenantId: string) => {
     console.log('Approving tenant:', tenantId);
-    // TODO: Implement API call
+    approveMutation.mutate(
+      { tenantId, reason: 'Approved by super admin' },
+      {
+        onSuccess: () => {
+          refetch();
+        }
+      }
+    );
   };
 
   const handleReject = (tenantId: string) => {
     console.log('Rejecting tenant:', tenantId);
-    // TODO: Implement API call with reason
+    rejectMutation.mutate(
+      { tenantId, reason: 'Rejected by super admin' },
+      {
+        onSuccess: () => {
+          refetch();
+        }
+      }
+    );
   };
 
   const stats = {
@@ -147,10 +172,18 @@ export const SuperAdminDashboard = () => {
           </Button>
           
           <Button variant="outline" className="h-auto p-4 justify-start">
-            <Settings className="w-5 h-5 mr-3" />
+            <Building2 className="w-5 h-5 mr-3" />
             <div className="text-left">
-              <p className="font-medium">Global Settings</p>
-              <p className="text-sm text-muted-foreground">System configuration</p>
+              <p className="font-medium">Factory Management</p>
+              <p className="text-sm text-muted-foreground">Manage factory details</p>
+            </div>
+          </Button>
+
+          <Button variant="outline" className="h-auto p-4 justify-start">
+            <Activity className="w-5 h-5 mr-3" />
+            <div className="text-left">
+              <p className="font-medium">System Activity</p>
+              <p className="text-sm text-muted-foreground">View system logs</p>
             </div>
           </Button>
         </div>

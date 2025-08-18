@@ -226,6 +226,10 @@ class ApiService {
     return this.request<any>(`/products?page=${page}&limit=${limit}`);
   }
 
+  async getProduct(productId: string) {
+    return this.request<any>(`/products/${productId}`);
+  }
+
   async createProduct(productData: any) {
     return this.request<{ product: any }>('/products', {
       method: 'POST',

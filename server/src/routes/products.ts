@@ -7,7 +7,8 @@ import {
   getProductStages,
   createProcessStage,
   updateProcessStage,
-  reorderProcessStages
+  reorderProcessStages,
+  getProduct
 } from '../controllers/productController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { enforceTenantScope } from '../middleware/tenantScope';
@@ -29,6 +30,12 @@ router.get(
   enforceTenantScope,
   validatePagination,
   getProducts
+);
+
+router.get(
+  '/:productId',
+  enforceTenantScope,
+  getProduct
 );
 
 router.post(

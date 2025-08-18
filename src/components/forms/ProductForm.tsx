@@ -1,5 +1,8 @@
 
 import { useState } from 'react';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { api } from '@/services/api';
+import type { Product } from '@/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -19,43 +22,68 @@ type ProductFormData = z.infer<typeof productSchema>;
 
 interface ProductFormProps {
   children: React.ReactNode;
+  product?: Product; // if provided, acts as edit form
   onSubmit?: (data: ProductFormData) => void;
+  onSuccess?: () => void; // optional callback after API success
 }
 
-export const ProductForm = ({ children, onSubmit }: ProductFormProps) => {
+export const ProductForm = ({ children, product, onSubmit, onSuccess }: ProductFormProps) => {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
     defaultValues: {
-      name: '',
-      description: '',
+      name: product?.name ?? '',
+      description: product?.description ?? '',
+    },
+  });
+
+  // Keep form values in sync when opening as edit form
+  const isEdit = Boolean(product);
+
+  const createMutation = useMutation({
+    mutationFn: async (data: ProductFormData) => api.createProduct(data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
+    },
+  });
+
+  const updateMutation = useMutation({
+    mutationFn: async (data: ProductFormData) => api.updateProduct(product!.id, data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['products'] });
     },
   });
 
   const handleSubmit = async (data: ProductFormData) => {
     setIsLoading(true);
     try {
-      // TODO: Replace with actual API call
-      console.log('Creating product:', data);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
+      if (isEdit) {
+        await updateMutation.mutateAsync(data);
+        toast({
+          title: 'Product updated',
+          description: `${data.name} has been updated successfully.`,
+        });
+      } else {
+        await createMutation.mutateAsync(data);
+        toast({
+          title: 'Product created',
+          description: `${data.name} has been added successfully.`,
+        });
+      }
+
       onSubmit?.(data);
-      toast({
-        title: 'Product created',
-        description: `${data.name} has been added successfully.`,
-      });
+      onSuccess?.();
       
       form.reset();
       setOpen(false);
     } catch (error) {
       toast({
         title: 'Error',
-        description: 'Failed to create product. Please try again.',
+        description: `Failed to ${isEdit ? 'update' : 'create'} product. Please try again.`,
         variant: 'destructive',
       });
     } finally {
@@ -70,7 +98,7 @@ export const ProductForm = ({ children, onSubmit }: ProductFormProps) => {
       </SheetTrigger>
       <SheetContent side="bottom" className="h-[90vh]">
         <SheetHeader>
-          <SheetTitle>Add New Product</SheetTitle>
+          <SheetTitle>{isEdit ? 'Edit Product' : 'Add New Product'}</SheetTitle>
         </SheetHeader>
         
         <Form {...form}>
@@ -121,7 +149,7 @@ export const ProductForm = ({ children, onSubmit }: ProductFormProps) => {
                 disabled={isLoading}
                 className="flex-1"
               >
-                {isLoading ? 'Creating...' : 'Create Product'}
+                {isLoading ? (isEdit ? 'Saving...' : 'Creating...') : (isEdit ? 'Save Changes' : 'Create Product')}
               </Button>
             </div>
           </form>

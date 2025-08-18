@@ -1,79 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { UserPlus, Search, Mail, Phone, Settings, Crown, Eye, Users } from 'lucide-react';
-import { TenantHeader } from '@/components/layout/TenantHeader';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { UserInviteForm } from '@/components/forms/UserInviteForm';
 import { User, UserRole } from '@/types';
-
-// Mock data
-const mockUsers: User[] = [
-  {
-    id: '1',
-    autoId: 'EMP001',
-    name: 'John Smith',
-    email: 'john.smith@acme.com',
-    mobile: '+1-555-0101',
-    role: 'supervisor',
-    tenantId: 'tenant1',
-    isActive: true,
-    createdAt: '2024-01-10T10:00:00Z'
-  },
-  {
-    id: '2',
-    autoId: 'EMP002',
-    name: 'Sarah Johnson',
-    email: 'sarah.johnson@acme.com',
-    mobile: '+1-555-0102',
-    role: 'employee',
-    tenantId: 'tenant1',
-    isActive: true,
-    createdAt: '2024-01-12T14:30:00Z'
-  },
-  {
-    id: '3',
-    autoId: 'EMP003',
-    name: 'Mike Wilson',
-    email: 'mike.wilson@acme.com',
-    mobile: '+1-555-0103',
-    role: 'employee',
-    tenantId: 'tenant1',
-    isActive: true,
-    createdAt: '2024-01-15T09:15:00Z'
-  },
-  {
-    id: '4',
-    autoId: 'EMP004',
-    name: 'Lisa Brown',
-    email: '',
-    mobile: '+1-555-0104',
-    role: 'employee',
-    tenantId: 'tenant1',
-    isActive: false,
-    createdAt: '2024-01-08T16:45:00Z'
-  }
-];
+import { useUsers } from '@/hooks/useApi';
 
 export const UsersPage = () => {
   const navigate = useNavigate();
-  const [users] = useState(mockUsers);
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
 
-  const filteredUsers = users.filter(user => {
+  // Fetch users from API
+  const { data: usersData, refetch } = useUsers(1, 100);
+  const users = usersData?.data || [];
+
+  const filteredUsers = users.filter((user: User) => {
     const matchesSearch = user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         user.mobile.includes(searchTerm);
+                         user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.autoId?.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesRole = roleFilter === 'all' || user.role === roleFilter;
     const matchesStatus = statusFilter === 'all' || 
                          (statusFilter === 'active' && user.isActive) ||
                          (statusFilter === 'inactive' && !user.isActive);
+    
     return matchesSearch && matchesRole && matchesStatus;
   });
 
@@ -171,7 +128,6 @@ export const UsersPage = () => {
 
   return (
     <MobileLayout>
-      <TenantHeader />
       
       <div className="p-4 space-y-6">
         <div>

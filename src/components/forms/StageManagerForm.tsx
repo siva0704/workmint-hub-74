@@ -139,7 +139,7 @@ export const StageManagerForm = ({ children, productId, stages: initialStages, o
             {stages.length > 0 ? (
               <div className="space-y-2">
                 {stages.map((stage, index) => (
-                  <Card key={stage.id}>
+                  <Card key={`${stage.id}-${index}`}>
                     <CardContent className="p-3">
                       <div className="flex items-center gap-3">
                         <div className="flex flex-col gap-1">

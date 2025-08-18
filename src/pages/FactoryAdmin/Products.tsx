@@ -1,63 +1,34 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Settings, Eye, Edit } from 'lucide-react';
-import { TenantHeader } from '@/components/layout/TenantHeader';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { ProductForm } from '@/components/forms/ProductForm';
 import { StageManagerForm } from '@/components/forms/StageManagerForm';
 import { Product, ProcessStage } from '@/types';
-
-// Mock data
-const mockProducts: Product[] = [
-  {
-    id: '1',
-    tenantId: 'tenant1',
-    name: 'Steel Beam A100',
-    description: 'High-strength structural steel beam for construction projects',
-    isActive: true,
-    createdAt: '2024-01-10T10:00:00Z',
-    stages: [
-      { id: 's1', productId: '1', name: 'Cutting', description: 'Cut raw materials to size', order: 1, isActive: true },
-      { id: 's2', productId: '1', name: 'Welding', description: 'Weld components together', order: 2, isActive: true },
-      { id: 's3', productId: '1', name: 'Quality Check', description: 'Final inspection', order: 3, isActive: true }
-    ]
-  },
-  {
-    id: '2',
-    tenantId: 'tenant1',
-    name: 'Steel Pipe B200',
-    description: 'Seamless steel pipe for industrial applications',
-    isActive: true,
-    createdAt: '2024-01-12T14:30:00Z',
-    stages: [
-      { id: 's4', productId: '2', name: 'Forming', description: 'Shape the pipe', order: 1, isActive: true },
-      { id: 's5', productId: '2', name: 'Assembly', description: 'Assemble components', order: 2, isActive: true }
-    ]
-  },
-  {
-    id: '3',
-    tenantId: 'tenant1',
-    name: 'Steel Frame C300',
-    description: 'Custom steel frame for specialized equipment',
-    isActive: false,
-    createdAt: '2024-01-08T09:15:00Z',
-    stages: [
-      { id: 's6', productId: '3', name: 'Preparation', description: 'Prepare materials', order: 1, isActive: true },
-      { id: 's7', productId: '3', name: 'Assembly', description: 'Assemble frame', order: 2, isActive: true },
-      { id: 's8', productId: '3', name: 'Finishing', description: 'Apply coating', order: 3, isActive: true }
-    ]
-  }
-];
+import { api } from '@/services/api';
+import { useQuery } from '@tanstack/react-query';
 
 export const ProductsPage = () => {
   const navigate = useNavigate();
-  const [products, setProducts] = useState(mockProducts);
+  const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showInactiveProducts, setShowInactiveProducts] = useState(false);
+
+  const { data, refetch } = useQuery({
+    queryKey: ['products'],
+    queryFn: async () => {
+      const res = await api.getProducts();
+      return res.data as Product[];
+    },
+  });
+
+  useEffect(() => {
+    if (data) setProducts(data);
+  }, [data]);
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -95,7 +66,7 @@ export const ProductsPage = () => {
           <h4 className="text-sm font-medium mb-2">Process Stages ({product.stages.length})</h4>
           <div className="space-y-2">
             {product.stages.slice(0, 3).map((stage, index) => (
-              <div key={stage.id} className="flex items-center gap-3 text-sm">
+              <div key={`${product.id}-${stage.id}`} className="flex items-center gap-3 text-sm">
                 <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
                   {index + 1}
                 </span>
@@ -120,7 +91,7 @@ export const ProductsPage = () => {
             <Eye className="w-4 h-4 mr-1" />
             View Details
           </Button>
-          <ProductForm>
+          <ProductForm product={product} onSuccess={() => refetch()}>
             <Button size="sm" variant="outline" className="flex-1">
               <Edit className="w-4 h-4 mr-1" />
               Edit
@@ -142,7 +113,6 @@ export const ProductsPage = () => {
 
   return (
     <MobileLayout>
-      <TenantHeader />
       
       <div className="p-4 space-y-6">
         <div className="flex justify-between items-center">
@@ -176,7 +146,7 @@ export const ProductsPage = () => {
         </div>
 
         {/* Add Product Button */}
-        <ProductForm>
+        <ProductForm onSuccess={() => refetch()}>
           <Button className="w-full h-auto p-4">
             <Plus className="w-5 h-5 mr-3" />
             <div className="text-left">

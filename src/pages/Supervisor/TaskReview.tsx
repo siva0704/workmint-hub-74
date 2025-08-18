@@ -2,79 +2,41 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { CheckCircle, XCircle, Clock, Search, Filter, Eye } from 'lucide-react';
-import { useToast } from '@/hooks/use-toast';
-
-interface Task {
-  id: string;
-  employeeId: string;
-  employeeName: string;
-  productName: string;
-  stageName: string;
-  targetQuantity: number;
-  completedQuantity: number;
-  status: 'pending_review' | 'approved' | 'rejected' | 'in_progress';
-  submittedAt: string;
-  deadline: string;
-  notes?: string;
-  submissionNotes?: string;
-}
-
-const mockTasks: Task[] = [
-  {
-    id: 'task1',
-    employeeId: 'emp1',
-    employeeName: 'John Worker',
-    productName: 'Steel Frame',
-    stageName: 'Cutting',
-    targetQuantity: 50,
-    completedQuantity: 45,
-    status: 'pending_review',
-    submittedAt: '2024-01-15T14:30:00Z',
-    deadline: '2024-01-20T23:59:59Z',
-    notes: 'Rush order - high priority',
-    submissionNotes: 'Completed 45 units. 5 units had material defects.'
-  },
-  {
-    id: 'task2',
-    employeeId: 'emp2',
-    employeeName: 'Sarah Builder',
-    productName: 'Motor Assembly',
-    stageName: 'Testing',
-    targetQuantity: 20,
-    completedQuantity: 20,
-    status: 'pending_review',
-    submittedAt: '2024-01-15T16:45:00Z',
-    deadline: '2024-01-22T23:59:59Z',
-    submissionNotes: 'All units tested successfully. Ready for shipping.'
-  },
-];
+import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
+import { CheckCircle, XCircle, Clock, AlertTriangle, Eye, Check, X } from 'lucide-react';
+import { MobileLayout } from '@/components/layout/MobileLayout';
+import { TaskReviewForm } from '@/components/forms/TaskReviewForm';
+import { Task } from '@/types';
+import { useTasks, useConfirmTask, useRejectTask } from '@/hooks/useApi';
 
 export const TaskReviewPage = () => {
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [reviewNotes, setReviewNotes] = useState('');
-  const [partialQuantity, setPartialQuantity] = useState<number>(0);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-  const { toast } = useToast();
+  const [activeTab, setActiveTab] = useState('pending');
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
 
-  const filteredTasks = tasks.filter(task => {
-    const matchesSearch = task.employeeName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.productName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         task.stageName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
-    return matchesSearch && matchesStatus;
-  });
+  // Fetch tasks from API
+  const { data: tasksData, refetch } = useTasks();
+  const confirmTaskMutation = useConfirmTask();
+  const rejectTaskMutation = useRejectTask();
 
-  const pendingTasks = filteredTasks.filter(t => t.status === 'pending_review');
-  const reviewedTasks = filteredTasks.filter(t => t.status === 'approved' || t.status === 'rejected');
+  const tasks = tasksData?.data || [];
+  const pendingTasks = tasks.filter((t: Task) => t.status === 'completed');
+  const confirmedTasks = tasks.filter((t: Task) => t.status === 'confirmed');
+  const rejectedTasks = tasks.filter((t: Task) => t.status === 'rejected');
+
+  const filteredTasks = (() => {
+    const currentTasks = activeTab === 'pending' ? pendingTasks : 
+                        activeTab === 'confirmed' ? confirmedTasks : rejectedTasks;
+    
+    return currentTasks.filter((task: Task) => 
+      task.employeeName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      task.processStageeName?.toLowerCase().includes(searchTerm.toLowerCase())
+    );
+  })();
 
   const handleApprove = (taskId: string, approvedQuantity?: number) => {
     const task = tasks.find(t => t.id === taskId);

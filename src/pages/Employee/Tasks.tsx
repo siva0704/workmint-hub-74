@@ -10,102 +10,58 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { CheckCircle, Clock, AlertCircle, Edit, Save, RefreshCw } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-
-interface Task {
-  id: string;
-  productName: string;
-  stageName: string;
-  targetQuantity: number;
-  completedQuantity: number;
-  progress: number;
-  deadline: string;
-  status: 'active' | 'due_this_week' | 'completed' | 'rejected' | 'overdue';
-  notes?: string;
-  rejectionReason?: string;
-  assignedBy: string;
-}
-
-const mockTasks: Task[] = [
-  {
-    id: 'task1',
-    productName: 'Steel Frame',
-    stageName: 'Cutting',
-    targetQuantity: 50,
-    completedQuantity: 30,
-    progress: 60,
-    deadline: '2024-01-20T23:59:59Z',
-    status: 'active',
-    notes: 'Use cutting machine #3',
-    assignedBy: 'supervisor1'
-  },
-  {
-    id: 'task2',
-    productName: 'Motor Assembly',
-    stageName: 'Testing',
-    targetQuantity: 20,
-    completedQuantity: 15,
-    progress: 75,
-    deadline: '2024-01-18T23:59:59Z',
-    status: 'due_this_week',
-    notes: 'Test all electrical connections',
-    assignedBy: 'supervisor1'
-  },
-  {
-    id: 'task3',
-    productName: 'Steel Frame',
-    stageName: 'Welding',
-    targetQuantity: 25,
-    completedQuantity: 25,
-    progress: 100,
-    deadline: '2024-01-15T23:59:59Z',
-    status: 'completed',
-    assignedBy: 'supervisor1'
-  },
-  {
-    id: 'task4',
-    productName: 'Gear Assembly',
-    stageName: 'Polishing',
-    targetQuantity: 40,
-    completedQuantity: 35,
-    progress: 87,
-    deadline: '2024-01-12T23:59:59Z',
-    status: 'rejected',
-    rejectionReason: 'Quality issues found in 5 units. Please rework and resubmit.',
-    assignedBy: 'supervisor1'
-  },
-];
+import { Task } from '@/types';
+import { useTasks, useUpdateTaskProgress } from '@/hooks/useApi';
 
 export const EmployeeTasksPage = () => {
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
-  const [editQuantity, setEditQuantity] = useState<number>(0);
-  const [submissionNotes, setSubmissionNotes] = useState<string>('');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>('all');
+  const [editingTask, setEditingTask] = useState<string | null>(null);
+  const [updatedQty, setUpdatedQty] = useState<number>(0);
   const { toast } = useToast();
 
-  const activeTasks = tasks.filter(t => t.status === 'active' || t.status === 'overdue');
-  const dueThisWeekTasks = tasks.filter(t => t.status === 'due_this_week');
-  const completedTasks = tasks.filter(t => t.status === 'completed');
-  const rejectedTasks = tasks.filter(t => t.status === 'rejected');
+  // Fetch tasks from API
+  const { data: tasksData, refetch } = useTasks();
+  const updateTaskMutation = useUpdateTaskProgress();
 
-  const handleUpdateQuantity = (taskId: string, newQuantity: number, notes: string) => {
-    setTasks(prev => prev.map(t => 
-      t.id === taskId 
-        ? { 
-            ...t, 
-            completedQuantity: newQuantity,
-            progress: Math.round((newQuantity / t.targetQuantity) * 100)
-          }
-        : t
-    ));
+  const tasks = tasksData?.data || [];
 
-    toast({ 
-      title: 'Progress Updated',
-      description: `Completed quantity updated to ${newQuantity}`
-    });
+  const filteredTasks = tasks.filter((task: Task) => {
+    const matchesSearch = task.productName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         task.processStageeName?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = statusFilter === 'all' || task.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
-    setSelectedTask(null);
-    setEditQuantity(0);
-    setSubmissionNotes('');
+  const activeTasks = filteredTasks.filter((t: Task) => t.status === 'active');
+  const completedTasks = filteredTasks.filter((t: Task) => t.status === 'completed');
+  const overdueTasks = activeTasks.filter((t: Task) => new Date(t.deadline) < new Date());
+
+  const handleUpdateQuantity = async (taskId: string) => {
+    const task = tasks.find((t: Task) => t.id === taskId);
+    if (!task || updatedQty > task.targetQty) return;
+
+    try {
+      await updateTaskMutation.mutateAsync({
+        taskId,
+        completedQty: updatedQty,
+      });
+      
+      setEditingTask(null);
+      setUpdatedQty(0);
+      refetch();
+      
+      toast({
+        title: 'Task Updated',
+        description: 'Task progress has been updated successfully.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Update Failed',
+        description: 'Failed to update task progress. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const handleSubmitTask = (taskId: string, notes: string) => {

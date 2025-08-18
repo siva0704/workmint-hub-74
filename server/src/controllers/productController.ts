@@ -2,15 +2,25 @@ import { Response } from 'express';
 import { Product } from '../models/Product';
 import { ProcessStage } from '../models/ProcessStage';
 import { AuthRequest } from '../types';
+import { Types } from 'mongoose';
 
 export const getProducts = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = parseInt(req.query.limit as string) || 10;
-    const tenantId = req.query.tenantId as string || req.user?.tenantId;
+    const search = req.query.search as string;
+    const showInactive = req.query.showInactive === 'true';
 
-    const query: any = {};
-    if (tenantId) query.tenantId = tenantId;
+    const query: Record<string, unknown> = {};
+    if (search) {
+      query.$or = [
+        { name: { $regex: search, $options: 'i' } },
+        { description: { $regex: search, $options: 'i' } },
+      ];
+    }
+    if (!showInactive) {
+      query.isActive = true;
+    }
 
     const skip = (page - 1) * limit;
     
@@ -22,14 +32,26 @@ export const getProducts = async (req: AuthRequest, res: Response): Promise<void
       Product.countDocuments(query),
     ]);
 
-    // Get stages for each product
     const productsWithStages = await Promise.all(
       products.map(async (product) => {
         const stages = await ProcessStage.find({ productId: product._id })
           .sort({ order: 1 });
+        const productIdString = (product._id as Types.ObjectId).toString();
         return {
-          ...product.toJSON(),
-          stages: stages.map(stage => stage.toJSON()),
+          id: productIdString,
+          tenantId: (product.tenantId as Types.ObjectId)?.toString(),
+          name: product.name,
+          description: product.description,
+          isActive: product.isActive,
+          createdAt: product.createdAt instanceof Date ? product.createdAt.toISOString() : product.createdAt,
+          stages: stages.map((stage) => ({
+            id: (stage._id as Types.ObjectId).toString(),
+            productId: (stage.productId as Types.ObjectId)?.toString(),
+            name: stage.name,
+            description: stage.description,
+            order: stage.order,
+            isActive: stage.isActive,
+          })),
         };
       })
     );
@@ -53,10 +75,74 @@ export const getProducts = async (req: AuthRequest, res: Response): Promise<void
   }
 };
 
+export const getProduct = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { productId } = req.params;
+
+    const product = await Product.findById(productId);
+    if (!product) {
+      res.status(404).json({
+        success: false,
+        message: 'Product not found',
+      });
+      return;
+    }
+
+    // Check tenant access
+    if (req.user?.role !== 'super_admin' && product.tenantId.toString() !== req.user?.tenantId) {
+      res.status(403).json({
+        success: false,
+        message: 'Access denied',
+      });
+      return;
+    }
+
+    // Get process stages
+    const stages = await ProcessStage.find({ productId: product._id })
+      .sort({ order: 1 });
+
+    const productWithStages = {
+      id: (product._id as Types.ObjectId).toString(),
+      tenantId: (product.tenantId as Types.ObjectId)?.toString(),
+      name: product.name,
+      description: product.description,
+      isActive: product.isActive,
+      createdAt: product.createdAt instanceof Date ? product.createdAt.toISOString() : product.createdAt,
+      stages: stages.map((stage) => ({
+        id: (stage._id as Types.ObjectId).toString(),
+        productId: (stage.productId as Types.ObjectId)?.toString(),
+        name: stage.name,
+        description: stage.description,
+        order: stage.order,
+        isActive: stage.isActive,
+      })),
+    };
+
+    res.json({
+      success: true,
+      data: productWithStages,
+    });
+  } catch (error) {
+    console.error('Get product error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
 export const createProduct = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { name, description } = req.body;
     const tenantId = req.user?.tenantId;
+
+    if (!tenantId) {
+      res.status(400).json({
+        success: false,
+        message: 'Tenant ID is required',
+      });
+      return;
+    }
 
     const product = await Product.create({
       name,
@@ -68,7 +154,17 @@ export const createProduct = async (req: AuthRequest, res: Response): Promise<vo
     res.status(201).json({
       success: true,
       message: 'Product created successfully',
-      data: { product },
+      data: {
+        product: {
+          id: (product._id as Types.ObjectId).toString(),
+          tenantId: (product.tenantId as Types.ObjectId)?.toString(),
+          name: product.name,
+          description: product.description,
+          isActive: product.isActive,
+          createdAt: product.createdAt instanceof Date ? product.createdAt.toISOString() : product.createdAt,
+          stages: [],
+        },
+      },
     });
   } catch (error) {
     console.error('Create product error:', error);

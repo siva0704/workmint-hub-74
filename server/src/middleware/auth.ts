@@ -18,7 +18,7 @@ export const authenticateToken = async (
       return;
     }
 
-    const decoded = jwt.verify(token, config.jwt.secret) as any;
+    const decoded = jwt.verify(token, config.jwt.secret as jwt.Secret) as any;
     const user = await User.findById(decoded.userId).select('-password');
 
     if (!user || !user.isActive) {
@@ -27,9 +27,9 @@ export const authenticateToken = async (
     }
 
     req.user = {
-      id: user._id.toString(),
+      id: (user._id as any).toString(),
       role: user.role,
-      tenantId: user.tenantId?.toString(),
+      tenantId: (user.tenantId as any)?.toString(),
     };
 
     next();

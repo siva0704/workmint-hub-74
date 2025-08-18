@@ -6,81 +6,25 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { CheckCircle, Clock, AlertTriangle, Target, TrendingUp, Edit3 } from 'lucide-react';
-import { TenantHeader } from '@/components/layout/TenantHeader';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Task } from '@/types';
 import { useToast } from '@/hooks/use-toast';
-
-// Mock data
-const mockTasks: Task[] = [
-  {
-    id: '1',
-    tenantId: 'tenant1',
-    employeeId: 'emp1',
-    employeeName: 'John Worker',
-    productId: 'prod1',
-    productName: 'Steel Beam A100',
-    processStageId: 'stage1',
-    processStageeName: 'Welding Process',
-    targetQty: 50,
-    completedQty: 35,
-    progress: 70,
-    status: 'active',
-    deadlineWeek: '2024-W03',
-    deadline: '2024-01-21T23:59:59Z',
-    notes: 'Focus on quality control',
-    assignedBy: 'supervisor1',
-    assignedAt: '2024-01-15T10:00:00Z'
-  },
-  {
-    id: '2',
-    tenantId: 'tenant1',
-    employeeId: 'emp1',
-    employeeName: 'John Worker',
-    productId: 'prod2',
-    productName: 'Steel Pipe B200',
-    processStageId: 'stage2',
-    processStageeName: 'Assembly',
-    targetQty: 30,
-    completedQty: 15,
-    progress: 50,
-    status: 'active',
-    deadlineWeek: '2024-W04',
-    deadline: '2024-01-28T23:59:59Z',
-    assignedBy: 'supervisor1',
-    assignedAt: '2024-01-16T14:00:00Z'
-  },
-  {
-    id: '3',
-    tenantId: 'tenant1',
-    employeeId: 'emp1',
-    employeeName: 'John Worker',
-    productId: 'prod3',
-    productName: 'Steel Beam C300',
-    processStageId: 'stage1',
-    processStageeName: 'Welding Process',
-    targetQty: 25,
-    completedQty: 25,
-    progress: 100,
-    status: 'completed',
-    deadlineWeek: '2024-W02',
-    deadline: '2024-01-14T23:59:59Z',
-    assignedBy: 'supervisor1',
-    assignedAt: '2024-01-08T09:00:00Z',
-    completedAt: '2024-01-12T17:30:00Z'
-  }
-];
+import { useTasks, useUpdateTaskProgress } from '@/hooks/useApi';
 
 export const EmployeeDashboard = () => {
-  const [tasks, setTasks] = useState(mockTasks);
   const [activeTab, setActiveTab] = useState('active');
   const [editingTask, setEditingTask] = useState<string | null>(null);
   const [updatedQty, setUpdatedQty] = useState<number>(0);
   const { toast } = useToast();
 
-  const activeTasks = tasks.filter(t => t.status === 'active');
-  const dueTasks = activeTasks.filter(t => new Date(t.deadline) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
-  const completedTasks = tasks.filter(t => t.status === 'completed');
+  // Fetch tasks from API
+  const { data: tasksData, refetch } = useTasks();
+  const updateTaskMutation = useUpdateTaskProgress();
+
+  const tasks = tasksData?.data || [];
+  const activeTasks = tasks.filter((t: Task) => t.status === 'active');
+  const dueTasks = activeTasks.filter((t: Task) => new Date(t.deadline) <= new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+  const completedTasks = tasks.filter((t: Task) => t.status === 'completed');
 
   const stats = {
     activeTasks: activeTasks.length,
@@ -89,27 +33,31 @@ export const EmployeeDashboard = () => {
     weeklyTarget: 125
   };
 
-  const handleUpdateQuantity = (taskId: string) => {
-    const task = tasks.find(t => t.id === taskId);
+  const handleUpdateQuantity = async (taskId: string) => {
+    const task = tasks.find((t: Task) => t.id === taskId);
     if (!task || updatedQty > task.targetQty) return;
 
-    setTasks(prev => prev.map(t => 
-      t.id === taskId 
-        ? { 
-            ...t, 
-            completedQty: updatedQty, 
-            progress: Math.round((updatedQty / t.targetQty) * 100),
-            status: updatedQty === t.targetQty ? 'completed' : 'active'
-          }
-        : t
-    ));
-
-    toast({
-      title: 'Progress updated',
-      description: `Completed quantity updated to ${updatedQty}`,
-    });
-
-    setEditingTask(null);
+    try {
+      await updateTaskMutation.mutateAsync({
+        taskId,
+        completedQty: updatedQty,
+      });
+      
+      setEditingTask(null);
+      setUpdatedQty(0);
+      refetch();
+      
+      toast({
+        title: 'Task Updated',
+        description: 'Task progress has been updated successfully.',
+      });
+    } catch (error) {
+      toast({
+        title: 'Update Failed',
+        description: 'Failed to update task progress. Please try again.',
+        variant: 'destructive',
+      });
+    }
   };
 
   const startEditing = (task: Task) => {
@@ -206,7 +154,6 @@ export const EmployeeDashboard = () => {
 
   return (
     <MobileLayout>
-      <TenantHeader />
       
       <div className="p-4 space-y-6">
         <div>

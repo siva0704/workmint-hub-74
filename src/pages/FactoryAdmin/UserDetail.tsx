@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ArrowLeft, Edit, Phone, Mail, UserIcon, Calendar, Shield } from 'lucide-react';
-import { TenantHeader } from '@/components/layout/TenantHeader';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { UserInviteForm } from '@/components/forms/UserInviteForm';
 import { User, UserRole } from '@/types';
@@ -58,7 +57,6 @@ export const UserDetailPage = () => {
 
   return (
     <MobileLayout>
-      <TenantHeader />
       
       <div className="p-4 space-y-6">
         {/* Header */}
