@@ -385,6 +385,333 @@ const { data: products, isLoading } = useProducts(page, limit);
 const { data: tasks, isLoading } = useTasks(filters);
 ```
 
+## 🔄 Complete Role-Based Backend Integration Map
+
+### Super Admin Role Integration
+```typescript
+// Files requiring API integration:
+src/pages/SuperAdmin/Dashboard.tsx
+src/pages/SuperAdmin/Tenants.tsx  
+src/pages/SuperAdmin/Settings.tsx
+src/components/forms/TenantApprovalForm.tsx
+src/components/forms/GlobalSettingsForm.tsx
+
+// API Endpoints needed:
+GET /sa/tenants?status={pending|active|rejected}&page={page}
+POST /sa/tenants/{id}/approve
+POST /sa/tenants/{id}/reject  
+POST /sa/tenants/{id}/freeze
+PUT /sa/settings/global
+GET /sa/analytics/overview
+```
+
+### Factory Admin Role Integration
+```typescript
+// Files requiring API integration:
+src/pages/FactoryAdmin/Dashboard.tsx
+src/pages/FactoryAdmin/Products.tsx
+src/pages/FactoryAdmin/ProductDetail.tsx
+src/pages/FactoryAdmin/Users.tsx
+src/pages/FactoryAdmin/UserDetail.tsx
+src/pages/FactoryAdmin/Settings.tsx
+src/components/forms/ProductForm.tsx
+src/components/forms/UserInviteForm.tsx
+src/components/forms/BulkUserImport.tsx
+src/components/forms/ProcessStageManager.tsx
+src/components/forms/BrandingSettingsForm.tsx
+
+// API Endpoints needed:
+GET /products?tenantId={id}&page={page}
+POST /products
+PUT /products/{id}
+DELETE /products/{id}
+GET /products/{id}/stages
+POST /products/{id}/stages
+PUT /products/{id}/stages/{stageId}
+POST /products/{id}/stages/reorder
+GET /users?tenantId={id}&role={filter}
+POST /users/invite
+POST /users/bulk-import
+PUT /settings/branding
+POST /upload/logo
+```
+
+### Supervisor Role Integration
+```typescript
+// Files requiring API integration:
+src/pages/Supervisor/Dashboard.tsx
+src/pages/Supervisor/TaskAssign.tsx
+src/pages/Supervisor/TaskReview.tsx
+src/components/forms/TaskAssignForm.tsx
+src/components/forms/EnhancedTaskAssignForm.tsx
+src/components/forms/TaskReviewForm.tsx
+src/components/forms/TaskEscalationForm.tsx
+
+// API Endpoints needed:
+GET /tasks?supervisorId={id}&status={filter}&week={iso-week}
+POST /tasks/assign
+PUT /tasks/{id}/confirm
+PUT /tasks/{id}/reject
+GET /employees?tenantId={id}&supervisorId={id}
+GET /analytics/team-performance
+POST /tasks/bulk-nudge
+```
+
+### Employee Role Integration
+```typescript
+// Files requiring API integration:
+src/pages/Employee/Dashboard.tsx
+src/pages/Employee/Tasks.tsx
+src/pages/Employee/Profile.tsx
+src/components/forms/TaskUpdateModal.tsx
+
+// API Endpoints needed:
+GET /tasks/my-tasks?employeeId={id}&status={filter}
+PUT /tasks/{id}/update-progress
+POST /tasks/{id}/resubmit
+GET /profile
+PUT /profile
+POST /tasks/{id}/save-draft
+```
+
+## 🔐 JWT Authentication Integration Points
+
+### 1. Token Interceptor Implementation
+```typescript
+// src/services/api.ts - Add to request interceptor
+private async makeRequest<T>(url: string, options: RequestInit): Promise<T> {
+  const token = localStorage.getItem('auth-token');
+  const headers = {
+    'Content-Type': 'application/json',
+    ...(token && { 'Authorization': `Bearer ${token}` }),
+    ...options.headers,
+  };
+
+  // Add tenant scoping for multi-tenant isolation
+  const user = useAuthStore.getState().user;
+  if (user?.tenantId) {
+    headers['X-Tenant-ID'] = user.tenantId;
+  }
+
+  let response = await fetch(`${this.baseUrl}${url}`, { ...options, headers });
+
+  // Handle token expiry
+  if (response.status === 401) {
+    const refreshed = await this.refreshToken();
+    if (refreshed) {
+      headers['Authorization'] = `Bearer ${refreshed.token}`;
+      response = await fetch(`${this.baseUrl}${url}`, { ...options, headers });
+    } else {
+      useAuthStore.getState().logout();
+      throw new Error('Authentication failed');
+    }
+  }
+
+  return response.json();
+}
+```
+
+### 2. Route Protection Implementation
+```typescript
+// src/components/guards/ProtectedRoute.tsx - Create new file
+import { useAuthStore } from '@/stores/auth';
+import { Navigate } from 'react-router-dom';
+
+interface ProtectedRouteProps {
+  children: React.ReactNode;
+  allowedRoles?: string[];
+}
+
+export const ProtectedRoute = ({ children, allowedRoles }: ProtectedRouteProps) => {
+  const { isAuthenticated, user } = useAuthStore();
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (allowedRoles && !allowedRoles.includes(user?.role || '')) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  return <>{children}</>;
+};
+```
+
+### 3. Tenant Context Implementation
+```typescript
+// src/stores/tenant.ts - Create new file
+import { create } from 'zustand';
+
+interface TenantStore {
+  currentTenant: Tenant | null;
+  setTenant: (tenant: Tenant) => void;
+  clearTenant: () => void;
+  getTenantId: () => string | null;
+}
+
+export const useTenantStore = create<TenantStore>((set, get) => ({
+  currentTenant: null,
+  setTenant: (tenant) => set({ currentTenant: tenant }),
+  clearTenant: () => set({ currentTenant: null }),
+  getTenantId: () => get().currentTenant?.id || null,
+}));
+```
+
+## 📊 Real-time Features Integration
+
+### 1. WebSocket Connection Setup
+```typescript
+// src/services/websocket.ts - Create new file
+class WebSocketService {
+  private ws: WebSocket | null = null;
+  private reconnectAttempts = 0;
+  private maxReconnectAttempts = 5;
+
+  connect() {
+    const token = localStorage.getItem('auth-token');
+    const wsUrl = `${config.wsUrl}?token=${token}`;
+    
+    this.ws = new WebSocket(wsUrl);
+    
+    this.ws.onopen = () => {
+      console.log('WebSocket connected');
+      this.reconnectAttempts = 0;
+    };
+
+    this.ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      this.handleMessage(data);
+    };
+
+    this.ws.onclose = () => {
+      this.reconnect();
+    };
+  }
+
+  private handleMessage(data: any) {
+    switch (data.type) {
+      case 'TASK_ASSIGNED':
+        // Invalidate tasks query
+        queryClient.invalidateQueries(['tasks']);
+        break;
+      case 'TASK_COMPLETED':
+        // Update task status in cache
+        queryClient.setQueryData(['tasks'], (old: any) => 
+          old.map((task: any) => 
+            task.id === data.taskId 
+              ? { ...task, status: 'completed', completedQty: data.completedQty }
+              : task
+          )
+        );
+        break;
+      case 'USER_INVITED':
+        // Refresh users list
+        queryClient.invalidateQueries(['users']);
+        break;
+    }
+  }
+}
+```
+
+### 2. Offline Sync Enhancement
+```typescript
+// src/utils/offlineSync.ts - Create new file
+class OfflineSyncService {
+  private syncQueue: Array<SyncAction> = [];
+
+  addToQueue(action: SyncAction) {
+    this.syncQueue.push(action);
+    this.saveQueueToStorage();
+  }
+
+  async processQueue() {
+    if (!navigator.onLine) return;
+
+    const queue = [...this.syncQueue];
+    this.syncQueue = [];
+
+    for (const action of queue) {
+      try {
+        await this.executeAction(action);
+      } catch (error) {
+        // Re-add failed actions to queue
+        this.syncQueue.push(action);
+      }
+    }
+
+    this.saveQueueToStorage();
+  }
+
+  private async executeAction(action: SyncAction) {
+    switch (action.type) {
+      case 'UPDATE_TASK_PROGRESS':
+        await api.updateTaskProgress(action.data.taskId, action.data.completedQty);
+        break;
+      case 'CREATE_PRODUCT':
+        await api.createProduct(action.data);
+        break;
+      case 'INVITE_USER':
+        await api.inviteUser(action.data);
+        break;
+    }
+  }
+}
+```
+
+## 🔒 Security Implementation
+
+### 1. Input Validation & Sanitization
+```typescript
+// src/utils/validation.ts - Enhance existing file
+export const sanitizeInput = (input: string): string => {
+  return input
+    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+    .replace(/javascript:/gi, '')
+    .trim();
+};
+
+export const validateFileUpload = (file: File): ValidationResult => {
+  const allowedTypes = config.allowedFileTypes;
+  const maxSize = parseSize(config.maxFileSize);
+
+  if (!allowedTypes.includes(file.type)) {
+    return { isValid: false, error: 'File type not allowed' };
+  }
+
+  if (file.size > maxSize) {
+    return { isValid: false, error: 'File size exceeds limit' };
+  }
+
+  return { isValid: true };
+};
+```
+
+### 2. API Rate Limiting
+```typescript
+// src/services/rateLimiter.ts - Create new file
+class RateLimiter {
+  private requests = new Map<string, number[]>();
+  private limit = 100; // requests per minute
+  private window = 60000; // 1 minute
+
+  canMakeRequest(endpoint: string): boolean {
+    const now = Date.now();
+    const requests = this.requests.get(endpoint) || [];
+    
+    // Remove old requests outside the window
+    const validRequests = requests.filter(time => now - time < this.window);
+    
+    if (validRequests.length >= this.limit) {
+      return false;
+    }
+
+    validRequests.push(now);
+    this.requests.set(endpoint, validRequests);
+    return true;
+  }
+}
+```
+
 ### 5. Development Workflow
 
 #### Phase 1: API Connection Setup (Day 1)
