@@ -1,0 +1,194 @@
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Factory Management SaaS Design System - Professional Theme */
+
+@layer base {
+  :root {
+    /* Core Brand Colors - Professional & Subdued */
+    --background: 0 0% 98%;
+    --foreground: 222 84% 5%;
+
+    /* Primary Colors - Royal Blue */
+    --primary: 217 91% 60%; /* Royal Blue */
+    --primary-foreground: 0 0% 100%;
+    
+    --secondary: 210 40% 98%; /* Slate 50 */
+    --secondary-foreground: 215 25% 27%;
+
+    /* Accent Colors - Royal Blue Accent */
+    --accent: 213 93% 68%; /* Lighter Blue */
+    --accent-foreground: 0 0% 100%;
+
+    /* Status Colors */
+    --success: 142 71% 45%; /* Emerald 600 */
+    --success-foreground: 0 0% 100%;
+    
+    --warning: 0 72% 51%; /* Red 500 instead of yellow */
+    --warning-foreground: 0 0% 100%;
+    
+    --destructive: 0 72% 51%; /* Red 500 */
+    --destructive-foreground: 0 0% 100%;
+
+    /* UI Element Colors */
+    --card: 0 0% 100%;
+    --card-foreground: 222 84% 5%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 84% 5%;
+
+    --muted: 210 40% 98%;
+    --muted-foreground: 215 16% 47%;
+
+    --border: 214 32% 91%;
+    --input: 210 40% 98%;
+    --ring: 215 25% 27%;
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    --background: 222 84% 5%;
+    --foreground: 210 40% 98%;
+
+    --card: 224 71% 4%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 224 71% 4%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 217 91% 60%;
+    --primary-foreground: 222 84% 5%;
+
+    --secondary: 215 28% 17%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 215 28% 17%;
+    --muted-foreground: 217 9% 61%;
+
+    --accent: 142 71% 45%;
+    --accent-foreground: 222 84% 5%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 215 28% 17%;
+    --input: 215 28% 17%;
+    --ring: 216 34% 17%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
+  /* Mobile-first typography scale */
+  .text-hero {
+    @apply text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight;
+  }
+  
+  .text-section {
+    @apply text-xl sm:text-2xl font-semibold tracking-tight;
+  }
+  
+  .text-card-title {
+    @apply text-lg font-semibold;
+  }
+  
+  .text-body {
+    @apply text-base leading-relaxed;
+  }
+  
+  .text-caption {
+    @apply text-sm text-muted-foreground;
+  }
+
+  /* Professional gradients */
+  .factory-gradient {
+    background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(217 91% 60%) 100%);
+  }
+  
+  .productivity-gradient {
+    background: linear-gradient(135deg, hsl(var(--accent)) 0%, hsl(var(--success)) 100%);
+  }
+
+  .glass-effect {
+    @apply bg-white/95 backdrop-blur-sm border border-gray-200;
+  }
+
+  /* Mobile tap targets */
+  .tap-target {
+    @apply min-h-[48px] min-w-[48px];
+  }
+
+  /* Smooth animations */
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out;
+  }
+  
+  .animate-fade-in {
+    animation: fadeIn 0.2s ease-out;
+  }
+
+  @keyframes slideUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  /* Status indicators */
+  .status-active {
+    @apply bg-emerald-50 text-emerald-700 border-emerald-200;
+  }
+  
+  .status-pending {
+    @apply bg-slate-50 text-slate-700 border-slate-200;
+  }
+  
+  .status-overdue {
+    @apply bg-red-50 text-red-700 border-red-200;
+  }
+  
+  .status-completed {
+    @apply bg-emerald-50 text-emerald-700 border-emerald-200;
+  }
+}
+
+/* Professional color utilities */
+@layer utilities {
+  .text-factory-dark { color: hsl(225 83% 53%); }
+  .text-factory-medium { color: hsl(217 91% 60%); }
+  .text-factory-light { color: hsl(213 93% 68%); }
+  .text-mint-fresh { color: hsl(142 71% 45%); }
+  .text-task-complete { color: hsl(142 71% 45%); }
+  .text-overdue-red { color: hsl(0 72% 51%); }
+  
+  .bg-factory-dark { background-color: hsl(225 83% 53%); }
+  .bg-factory-medium { background-color: hsl(217 91% 60%); }
+  .bg-factory-light { background-color: hsl(213 93% 68%); }
+  .bg-mint-fresh { background-color: hsl(142 71% 45%); }
+  .bg-task-complete { background-color: hsl(142 71% 45%); }
+  .bg-overdue-red { background-color: hsl(0 72% 51%); }
+  
+  .border-mint-fresh { border-color: hsl(142 71% 45%); }
+  .border-task-complete { border-color: hsl(142 71% 45%); }
+  .border-overdue-red { border-color: hsl(0 72% 51%); }
+}
