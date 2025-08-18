@@ -1,4 +1,3 @@
-
 # WorkMint Hub - Factory Management SaaS
 
 A comprehensive mobile-first SaaS web application for factory management with multi-tenant architecture. Built with modern React stack and designed for industrial workflows.
@@ -72,6 +71,7 @@ WorkMint Hub is a factory management system that streamlines industrial operatio
 ### Prerequisites
 - Node.js 18+ 
 - npm or yarn package manager
+- MongoDB (local installation or MongoDB Atlas)
 
 ### Installation
 ```bash
@@ -82,17 +82,93 @@ cd workmint-hub
 # Install dependencies
 npm install
 
+# Install backend dependencies
+cd server && npm install && cd ..
+
+# Set up environment variables
+cp .env.example .env.local
+cp server/.env.example server/.env
+
+# Seed the database with sample data
+npm run server:seed
+
 # Start development server
-npm run dev
+npm run dev:full  # Starts both frontend and backend
 ```
 
 ### Available Scripts
 ```bash
-npm run dev          # Start development server
+npm run dev          # Start frontend only
+npm run dev:full     # Start both frontend and backend
+npm run server:dev   # Start backend only
+npm run server:seed  # Seed database with sample data
 npm run build        # Build for production
 npm run preview      # Preview production build
 npm run lint         # Run ESLint
 ```
+
+### Backend API Endpoints
+
+The backend provides the following API endpoints:
+
+#### Authentication
+- `POST /api/auth/login` - User login
+- `POST /api/auth/signup` - Factory registration
+- `POST /api/auth/refresh` - Refresh JWT token
+- `POST /api/auth/logout` - User logout
+
+#### Tenant Management (Super Admin)
+- `GET /api/sa/tenants` - Get all tenants
+- `POST /api/sa/tenants/:id/approve` - Approve tenant
+- `POST /api/sa/tenants/:id/reject` - Reject tenant
+- `POST /api/sa/tenants/:id/freeze` - Freeze/unfreeze tenant
+
+#### User Management
+- `GET /api/users` - Get users (tenant-scoped)
+- `POST /api/users` - Create user
+- `PATCH /api/users/:id` - Update user
+- `DELETE /api/users/:id` - Deactivate user
+- `POST /api/users/bulk-import` - Bulk import users
+
+#### Product Management
+- `GET /api/products` - Get products (tenant-scoped)
+- `POST /api/products` - Create product
+- `PATCH /api/products/:id` - Update product
+- `DELETE /api/products/:id` - Deactivate product
+- `GET /api/products/:id/stages` - Get process stages
+- `POST /api/products/:id/stages` - Create process stage
+- `PATCH /api/products/:id/stages/:stageId` - Update process stage
+- `POST /api/products/:id/stages/reorder` - Reorder stages
+
+#### Task Management
+- `GET /api/tasks` - Get tasks (role-based filtering)
+- `POST /api/tasks` - Create task
+- `PATCH /api/tasks/:id/complete` - Update task progress
+- `POST /api/tasks/:id/confirm` - Confirm task (supervisor)
+- `POST /api/tasks/:id/reject` - Reject task (supervisor)
+
+#### File Upload
+- `POST /api/upload` - Upload files
+
+### Database Schema
+
+The backend uses MongoDB with the following collections:
+- **users** - User accounts with role-based access
+- **tenants** - Factory/company information
+- **products** - Product definitions
+- **processstages** - Manufacturing process steps
+- **tasks** - Work assignments and progress
+- **refreshtokens** - JWT refresh token management
+
+### Authentication & Security
+
+- **JWT Authentication** with automatic token refresh
+- **Multi-tenant data isolation** - each tenant's data is completely separated
+- **Role-based access control** - different permissions for each user role
+- **Password hashing** with bcrypt
+- **Rate limiting** to prevent abuse
+- **Input validation** and sanitization
+- **CORS protection** for cross-origin requests
 
 ## 📱 Key Features
 
