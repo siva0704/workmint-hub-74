@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,10 +6,10 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { Palette, Calendar, Bell, Upload, Save } from 'lucide-react';
+import { Palette, Calendar, Bell, Upload, Save, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
-import { MobileLayout } from '@/components/layout/MobileLayout';
 import { useAuthStore } from '@/stores/auth';
+import { useTenant, useUpdateTenant } from '@/hooks/useApi';
 
 interface FactorySettings {
   branding: {
@@ -71,15 +71,52 @@ export const FactorySettingsPage = () => {
   const [settings, setSettings] = useState<FactorySettings>(initialSettings);
   const [newHoliday, setNewHoliday] = useState('');
   const { toast } = useToast();
+  const { user } = useAuthStore();
   const updateTenant = useAuthStore((s) => s.updateTenant);
+  
+  // Fetch real tenant data
+  const { data: tenant, isLoading } = useTenant(user?.tenantId?.toString() || undefined);
+  const updateTenantMutation = useUpdateTenant();
 
-  const handleSave = () => {
-    // TODO: API call to save settings
-    // Immediately reflect changes in UI (header) by updating tenant in auth store
-    if (settings.branding.factoryName) {
-      updateTenant({ factoryName: settings.branding.factoryName });
+  // Update settings when tenant data loads
+  useEffect(() => {
+    if (tenant?.data) {
+      setSettings(prev => ({
+        ...prev,
+        branding: {
+          ...prev.branding,
+          factoryName: tenant.data.factoryName || 'Demo Factory',
+        },
+      }));
     }
-    toast({ title: 'Settings saved successfully' });
+  }, [tenant]);
+
+  const handleSave = async () => {
+    if (!user?.tenantId) {
+      toast({ 
+        title: 'Error', 
+        description: 'Unable to save settings',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    try {
+      await updateTenantMutation.mutateAsync({
+        tenantId: user.tenantId?.toString() || '',
+        tenantData: {
+          factoryName: settings.branding.factoryName,
+          // Add other fields as needed
+        }
+      });
+      
+      // Update local auth store
+      if (settings.branding.factoryName) {
+        updateTenant({ factoryName: settings.branding.factoryName });
+      }
+    } catch (error) {
+      console.error('Save settings error:', error);
+    }
   };
 
   const updateBranding = (field: string, value: string) => {
@@ -133,15 +170,28 @@ export const FactorySettingsPage = () => {
     updateWorkSchedule('holidays', updatedHolidays);
   };
 
+  if (isLoading) {
+    return (
+      <div className="p-4 flex items-center justify-center min-h-[50vh]">
+        <div className="flex items-center gap-2">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          <span>Loading settings...</span>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <MobileLayout>
-      <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Factory Settings</h1>
-          <Button onClick={handleSave}>
-            <Save className="h-4 w-4 mr-2" />
-            Save Changes
-          </Button>
+                  <Button 
+          onClick={handleSave}
+          disabled={updateTenantMutation.isPending}
+        >
+          <Save className="h-4 w-4 mr-2" />
+          {updateTenantMutation.isPending ? 'Saving...' : 'Save Changes'}
+        </Button>
         </div>
 
         <Tabs defaultValue="branding" className="space-y-6">
@@ -410,6 +460,5 @@ export const FactorySettingsPage = () => {
           </TabsContent>
         </Tabs>
       </div>
-    </MobileLayout>
   );
 };

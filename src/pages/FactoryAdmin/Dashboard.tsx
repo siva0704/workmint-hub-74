@@ -2,14 +2,15 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Package, Users, Settings, Plus, TrendingUp, Clock, CheckCircle } from 'lucide-react';
+import { Package, Users, Settings, Plus, TrendingUp, Clock, CheckCircle, UserPlus, FileText } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { ProductForm } from '@/components/forms/ProductForm';
 import { UserInviteForm } from '@/components/forms/UserInviteForm';
 import { useProducts, useUsers, useTasks } from '@/hooks/useApi';
 import { useAuthStore } from '@/stores/auth';
 import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
+import { formatActivityTime } from '@/utils/timeUtils';
 
 export const FactoryAdminDashboard = () => {
   const { user } = useAuthStore();
@@ -41,15 +42,54 @@ export const FactoryAdminDashboard = () => {
     pendingTasks: tasks.filter((t: any) => t.status === 'active').length
   };
 
-  const recentActivity = [
-    { id: 1, action: 'New product added', item: products[0]?.name || 'Product', time: '2 hours ago' },
-    { id: 2, action: 'User invited', item: users[users.length - 1]?.name || 'User', time: '4 hours ago' },
-    { id: 3, action: 'Task completed', item: tasks[0]?.productName || 'Task', time: '6 hours ago' }
-  ];
+  const recentActivity = useMemo(() => {
+    const activities = [];
+    
+    // Add recent products
+    const recentProducts = products
+      .slice(0, 3)
+      .map(product => ({
+        id: `product-${product.id || product._id}`,
+        action: 'New product added',
+        item: product.name,
+        time: formatActivityTime(product.createdAt || new Date()),
+        icon: Package,
+        type: 'product'
+      }));
+    
+    // Add recent users
+    const recentUsers = users
+      .slice(0, 3)
+      .map(user => ({
+        id: `user-${user.id || user._id}`,
+        action: 'User invited',
+        item: user.name,
+        time: formatActivityTime(user.createdAt || new Date()),
+        icon: UserPlus,
+        type: 'user'
+      }));
+    
+    // Add recent tasks
+    const recentTasks = tasks
+      .slice(0, 3)
+      .map(task => ({
+        id: `task-${task.id || task._id}`,
+        action: task.status === 'completed' ? 'Task completed' : 'Task assigned',
+        item: task.productName,
+        time: formatActivityTime(task.assignedAt || new Date()),
+        icon: FileText,
+        type: 'task'
+      }));
+    
+    // Combine and sort by time (most recent first)
+    const allActivities = [...recentProducts, ...recentUsers, ...recentTasks];
+    return allActivities
+      .sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime())
+      .slice(0, 5);
+  }, [products, users, tasks]);
 
   return (
-    <MobileLayout>
-      <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6">
         {/* Welcome Section */}
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Good morning, {user?.name}</h1>
@@ -156,20 +196,29 @@ export const FactoryAdminDashboard = () => {
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            {recentActivity.map((activity) => (
-              <div key={activity.id} className="flex justify-between items-center p-3 border border-slate-200 rounded-lg">
-                <div>
-                  <p className="font-medium text-sm text-slate-900">{activity.action}</p>
-                  <p className="text-sm text-slate-600">{activity.item}</p>
-                </div>
-                <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-700">
-                  {activity.time}
-                </Badge>
+            {recentActivity.length > 0 ? (
+              recentActivity.map((activity) => {
+                const IconComponent = activity.icon;
+                return (
+                  <div key={activity.id} className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg">
+                    <IconComponent className="w-4 h-4 text-slate-600" />
+                    <div className="flex-1">
+                      <p className="font-medium text-sm text-slate-900">{activity.action}</p>
+                      <p className="text-sm text-slate-600">{activity.item}</p>
+                    </div>
+                    <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-700">
+                      {activity.time}
+                    </Badge>
+                  </div>
+                );
+              })
+            ) : (
+              <div className="text-center py-4 text-slate-500">
+                <p className="text-sm">No recent activity</p>
               </div>
-            ))}
+            )}
           </CardContent>
         </Card>
       </div>
-    </MobileLayout>
   );
 };

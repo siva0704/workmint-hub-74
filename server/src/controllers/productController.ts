@@ -3,6 +3,7 @@ import { Product } from '../models/Product';
 import { ProcessStage } from '../models/ProcessStage';
 import { AuthRequest } from '../types';
 import { Types } from 'mongoose';
+import mongoose from 'mongoose';
 
 export const getProducts = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -12,6 +13,15 @@ export const getProducts = async (req: AuthRequest, res: Response): Promise<void
     const showInactive = req.query.showInactive === 'true';
 
     const query: Record<string, unknown> = {};
+    
+    // Add tenant filter for multi-tenant isolation
+    if (req.user?.role !== 'super_admin' && req.user?.tenantId) {
+      // Convert string tenantId to ObjectId for database query
+      const mongoose = await import('mongoose');
+      const effectiveTenantId = req.query.tenantId as string || req.user.tenantId;
+      query.tenantId = new mongoose.Types.ObjectId(effectiveTenantId);
+    }
+    
     if (search) {
       query.$or = [
         { name: { $regex: search, $options: 'i' } },
@@ -88,11 +98,11 @@ export const getProduct = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
-    // Check tenant access
-    if (req.user?.role !== 'super_admin' && product.tenantId.toString() !== req.user?.tenantId) {
+    // Check tenant access for data isolation
+    if (req.user?.role !== 'super_admin' && product.tenantId.toString() !== req.user?.tenantId?.toString()) {
       res.status(403).json({
         success: false,
-        message: 'Access denied',
+        message: 'Access denied - Product not found in your factory',
       });
       return;
     }
@@ -147,7 +157,7 @@ export const createProduct = async (req: AuthRequest, res: Response): Promise<vo
     const product = await Product.create({
       name,
       description,
-      tenantId,
+      tenantId: new mongoose.Types.ObjectId(tenantId),
       isActive: true,
     });
 
@@ -190,10 +200,10 @@ export const updateProduct = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     // Check tenant access
-    if (req.user?.role !== 'super_admin' && product.tenantId.toString() !== req.user?.tenantId) {
+    if (req.user?.role !== 'super_admin' && product.tenantId.toString() !== req.user?.tenantId?.toString()) {
       res.status(403).json({
         success: false,
-        message: 'Access denied',
+        message: 'Access denied - Product not found in your factory',
       });
       return;
     }
@@ -229,10 +239,10 @@ export const deleteProduct = async (req: AuthRequest, res: Response): Promise<vo
     }
 
     // Check tenant access
-    if (req.user?.role !== 'super_admin' && product.tenantId.toString() !== req.user?.tenantId) {
+    if (req.user?.role !== 'super_admin' && product.tenantId.toString() !== req.user?.tenantId?.toString()) {
       res.status(403).json({
         success: false,
-        message: 'Access denied',
+        message: 'Access denied - Product not found in your factory',
       });
       return;
     }
@@ -268,10 +278,10 @@ export const getProductStages = async (req: AuthRequest, res: Response): Promise
     }
 
     // Check tenant access
-    if (req.user?.role !== 'super_admin' && product.tenantId.toString() !== req.user?.tenantId) {
+    if (req.user?.role !== 'super_admin' && product.tenantId.toString() !== req.user?.tenantId?.toString()) {
       res.status(403).json({
         success: false,
-        message: 'Access denied',
+        message: 'Access denied - Product not found in your factory',
       });
       return;
     }
@@ -352,10 +362,10 @@ export const updateProcessStage = async (req: AuthRequest, res: Response): Promi
     }
 
     // Check tenant access
-    if (req.user?.role !== 'super_admin' && stage.tenantId.toString() !== req.user?.tenantId) {
+    if (req.user?.role !== 'super_admin' && stage.tenantId.toString() !== req.user?.tenantId?.toString()) {
       res.status(403).json({
         success: false,
-        message: 'Access denied',
+        message: 'Access denied - Process stage not found in your factory',
       });
       return;
     }
@@ -392,10 +402,10 @@ export const reorderProcessStages = async (req: AuthRequest, res: Response): Pro
     }
 
     // Check tenant access
-    if (req.user?.role !== 'super_admin' && product.tenantId.toString() !== req.user?.tenantId) {
+    if (req.user?.role !== 'super_admin' && product.tenantId.toString() !== req.user?.tenantId?.toString()) {
       res.status(403).json({
         success: false,
-        message: 'Access denied',
+        message: 'Access denied - Product not found in your factory',
       });
       return;
     }

@@ -41,6 +41,97 @@ export const getTenants = async (req: AuthRequest, res: Response): Promise<void>
   }
 };
 
+export const getTenant = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.params;
+    
+    console.log('getTenant called with tenantId:', tenantId);
+    console.log('req.user?.tenantId:', req.user?.tenantId);
+    console.log('req.user?.tenantId?.toString():', req.user?.tenantId?.toString());
+    
+    // Ensure factory admin can only access their own tenant
+    if (req.user?.tenantId?.toString() !== tenantId) {
+      console.log('Access denied - tenantId mismatch');
+      res.status(403).json({
+        success: false,
+        message: 'Access denied',
+      });
+      return;
+    }
+
+    const tenant = await Tenant.findById(tenantId);
+    if (!tenant) {
+      res.status(404).json({
+        success: false,
+        message: 'Tenant not found',
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: tenant.toJSON(),
+    });
+  } catch (error) {
+    console.error('Get tenant error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+export const updateTenant = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { tenantId } = req.params;
+    const { factoryName, address, workersCount, ownerEmail, phone } = req.body;
+    
+    console.log('updateTenant called with tenantId:', tenantId);
+    console.log('req.user?.tenantId:', req.user?.tenantId);
+    console.log('req.body:', req.body);
+    
+    // Ensure factory admin can only update their own tenant
+    if (req.user?.tenantId?.toString() !== tenantId) {
+      console.log('Access denied - tenantId mismatch in updateTenant');
+      res.status(403).json({
+        success: false,
+        message: 'Access denied',
+      });
+      return;
+    }
+
+    const tenant = await Tenant.findById(tenantId);
+    if (!tenant) {
+      res.status(404).json({
+        success: false,
+        message: 'Tenant not found',
+      });
+      return;
+    }
+
+    // Update allowed fields
+    if (factoryName) tenant.factoryName = factoryName;
+    if (address) tenant.address = address;
+    if (workersCount) tenant.workersCount = workersCount;
+    if (ownerEmail) tenant.ownerEmail = ownerEmail;
+    if (phone) tenant.phone = phone;
+
+    await tenant.save();
+
+    res.json({
+      success: true,
+      message: 'Tenant updated successfully',
+      data: tenant.toJSON(),
+    });
+  } catch (error) {
+    console.error('Update tenant error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
 export const approveTenant = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const { tenantId } = req.params;

@@ -14,7 +14,7 @@ const seedData = async (): Promise<void> => {
       dbName: config.mongodb.dbName,
     });
 
-    console.log('🌱 Starting data seeding...');
+
 
     // Clear existing data
     await Promise.all([
@@ -186,12 +186,7 @@ const seedData = async (): Promise<void> => {
       status: 'pending',
     });
 
-    console.log('✅ Data seeding completed successfully!');
-    console.log('📧 Login credentials:');
-    console.log('   Super Admin: superadmin@factory.com / password123');
-    console.log('   Factory Admin: admin@demo-factory.com / password123');
-    console.log('   Supervisor: supervisor@demo-factory.com / password123');
-    console.log('   Employee: employee@demo-factory.com / password123');
+
 
   } catch (error) {
     console.error('❌ Seeding failed:', error);

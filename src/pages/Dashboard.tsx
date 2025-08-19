@@ -23,7 +23,7 @@ export const Dashboard = () => {
   const { user } = useAuthStore();
 
   const handleViewReports = () => {
-    console.log('View reports clicked');
+
     // TODO: Navigate to reports page when created
   };
 
@@ -278,8 +278,8 @@ export const Dashboard = () => {
   };
 
   return (
-    <MobileLayout>
+    <div>
       {renderDashboard()}
-    </MobileLayout>
+    </div>
   );
 };

@@ -60,7 +60,7 @@ const taskSchema = new Schema<ITask>({
   },
   assignedAt: {
     type: Date,
-    default: Date.now,
+    default: () => new Date(new Date().toLocaleString("en-US", {timeZone: "Asia/Kolkata"})),
   },
   completedAt: {
     type: Date,
@@ -83,5 +83,27 @@ taskSchema.index({ deadlineWeek: 1 });
 taskSchema.virtual('progress').get(function() {
   return Math.min((this.completedQty / this.targetQty) * 100, 100);
 });
+
+// Convert ObjectId to string in JSON output
+taskSchema.methods.toJSON = function() {
+  const taskObject = this.toObject();
+  taskObject._id = taskObject._id.toString();
+  if (taskObject.tenantId) {
+    taskObject.tenantId = taskObject.tenantId.toString();
+  }
+  if (taskObject.employeeId) {
+    taskObject.employeeId = taskObject.employeeId.toString();
+  }
+  if (taskObject.productId) {
+    taskObject.productId = taskObject.productId.toString();
+  }
+  if (taskObject.processStageId) {
+    taskObject.processStageId = taskObject.processStageId.toString();
+  }
+  if (taskObject.assignedBy) {
+    taskObject.assignedBy = taskObject.assignedBy.toString();
+  }
+  return taskObject;
+};
 
 export const Task = mongoose.model<ITask>('Task', taskSchema);

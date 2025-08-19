@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { authRateLimit } from '../middleware/security';
 import authRoutes from './auth';
 import tenantRoutes from './tenants';
 import userRoutes from './users';
@@ -19,8 +18,9 @@ router.get('/health', (req, res) => {
 });
 
 // API routes
-router.use('/auth', authRateLimit, authRoutes);
+router.use('/auth', authRoutes);
 router.use('/sa/tenants', tenantRoutes); // Super Admin tenant routes
+router.use('/tenants', tenantRoutes); // Factory Admin tenant routes
 router.use('/users', userRoutes);
 router.use('/products', productRoutes);
 router.use('/tasks', taskRoutes);

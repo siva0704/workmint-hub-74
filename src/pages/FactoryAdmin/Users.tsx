@@ -136,9 +136,7 @@ export const UsersPage = () => {
   };
 
   return (
-    <MobileLayout>
-      
-      <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6">
         <div>
           <h1 className="text-hero">Team Members</h1>
           <p className="text-muted-foreground mt-1">Manage your factory team and user roles</p>
@@ -285,6 +283,5 @@ export const UsersPage = () => {
           )}
         </div>
       </div>
-    </MobileLayout>
   );
 };

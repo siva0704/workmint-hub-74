@@ -7,7 +7,7 @@ import { connectDatabase } from './config/database';
 import { config, validateEnvironment } from './config/environment';
 import routes from './routes';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
-import { securityHeaders, apiRateLimit, corsOptions } from './middleware/security';
+import { securityHeaders, corsOptions } from './middleware/security';
 
 // Validate environment variables
 validateEnvironment();
@@ -17,7 +17,22 @@ const app = express();
 // Security middleware
 app.use(securityHeaders);
 app.use(cors(corsOptions));
-app.use(apiRateLimit);
+
+// Global rate limiting for API protection
+import { createRateLimit } from './middleware/security';
+const apiRateLimit = createRateLimit(
+  15 * 60 * 1000, // 15 minutes
+  100, // 100 requests per window
+  'Too many requests, please try again later'
+);
+
+app.use((req, res, next) => {
+  if (req.path.startsWith('/api/auth/')) {
+    // Skip global rate limiting for auth routes - they have their own
+    return next();
+  }
+  return apiRateLimit(req, res, next);
+});
 
 // General middleware
 app.use(compression());
@@ -46,6 +61,8 @@ app.get('/health', (req, res) => {
     environment: config.server.nodeEnv,
   });
 });
+
+
 
 // Error handling
 app.use(notFoundHandler);

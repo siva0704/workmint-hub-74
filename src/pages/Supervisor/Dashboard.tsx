@@ -1,17 +1,18 @@
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { CheckCircle, Clock, AlertTriangle, Target, TrendingUp, Users, Eye, List, CalendarDays } from 'lucide-react';
+import { CheckCircle, Clock, AlertTriangle, Target, TrendingUp, Users, Eye, List, CalendarDays, FileText } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Task } from '@/types';
 import { useTasks } from '@/hooks/useApi';
 import { useAuthStore } from '@/stores/auth';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
+import { formatActivityTime, formatDeadline, isOverdue } from '@/utils/timeUtils';
 
 export const SupervisorDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
@@ -56,8 +57,7 @@ export const SupervisorDashboard = () => {
   };
 
   return (
-    <MobileLayout>
-      <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Welcome, {user?.name}</h1>
           <p className="text-slate-600 mt-1">Monitor and manage your team's tasks</p>
@@ -188,7 +188,7 @@ export const SupervisorDashboard = () => {
                         <span className="text-slate-600">/{task.targetQty} completed</span>
                       </div>
                       <div className="text-sm text-slate-600">
-                        Due: {new Date(task.deadline).toLocaleDateString()}
+                        Due: {formatDeadline(task.deadline)}
                       </div>
                     </div>
                     
@@ -219,6 +219,5 @@ export const SupervisorDashboard = () => {
           </CardContent>
         </Card>
       </div>
-    </MobileLayout>
   );
 };

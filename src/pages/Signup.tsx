@@ -35,6 +35,7 @@ export const Signup = () => {
   const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
+  
       await api.signup(formData);
       toast({
         title: 'Registration Submitted',
@@ -42,9 +43,22 @@ export const Signup = () => {
       });
       navigate('/pending-approval');
     } catch (error: any) {
+      console.error('Signup error:', error);
+      let errorMessage = 'Failed to submit registration';
+      
+      // Check for validation errors first
+      if (error.response?.data?.errors) {
+        const validationErrors = error.response.data.errors.map((err: any) => `${err.path}: ${err.msg}`).join(', ');
+        errorMessage = `Validation errors: ${validationErrors}`;
+      } else if (error.message) {
+        errorMessage = error.message;
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
       toast({
         title: 'Registration Failed',
-        description: error.message || 'Failed to submit registration',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -165,7 +179,7 @@ export const Signup = () => {
               <Checkbox
                 id="terms"
                 checked={formData.acceptTerms}
-                onCheckedChange={(checked) => updateFormData('acceptTerms', checked)}
+                onCheckedChange={(checked) => updateFormData('acceptTerms', !!checked)}
               />
               <Label htmlFor="terms" className="text-sm">
                 I agree to the Terms & Conditions and Privacy Policy
@@ -280,6 +294,8 @@ export const Signup = () => {
             </div>
           </CardContent>
         </Card>
+
+
 
         {/* Footer */}
         <div className="text-center mt-6">

@@ -39,4 +39,17 @@ const processStageSchema = new Schema<IProcessStage>({
 processStageSchema.index({ productId: 1, order: 1 });
 processStageSchema.index({ tenantId: 1 });
 
+// Convert ObjectId to string in JSON output
+processStageSchema.methods.toJSON = function() {
+  const stageObject = this.toObject();
+  stageObject._id = stageObject._id.toString();
+  if (stageObject.productId) {
+    stageObject.productId = stageObject.productId.toString();
+  }
+  if (stageObject.tenantId) {
+    stageObject.tenantId = stageObject.tenantId.toString();
+  }
+  return stageObject;
+};
+
 export const ProcessStage = mongoose.model<IProcessStage>('ProcessStage', processStageSchema);

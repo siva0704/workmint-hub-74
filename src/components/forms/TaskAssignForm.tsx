@@ -85,7 +85,7 @@ export const TaskAssignForm = ({ children, onSubmit }: TaskAssignFormProps) => {
   };
 
   const handleProductChange = (productId: string) => {
-    const product = products.find((p: any) => p.id === productId);
+    const product = products.find((p: any) => (p.id || p._id) === productId);
     setSelectedProduct(product);
     form.setValue('productId', productId);
     form.setValue('processStageId', ''); // Reset stage selection
@@ -117,7 +117,7 @@ export const TaskAssignForm = ({ children, onSubmit }: TaskAssignFormProps) => {
                     </FormControl>
                     <SelectContent>
                       {employees.map((employee: any) => (
-                        <SelectItem key={employee.id} value={employee.id}>
+                        <SelectItem key={employee.id || employee._id} value={employee.id || employee._id}>
                           {employee.name} ({employee.autoId})
                         </SelectItem>
                       ))}
@@ -142,7 +142,7 @@ export const TaskAssignForm = ({ children, onSubmit }: TaskAssignFormProps) => {
                     </FormControl>
                     <SelectContent>
                       {products.map((product: any) => (
-                        <SelectItem key={product.id} value={product.id}>
+                        <SelectItem key={product.id || product._id} value={product.id || product._id}>
                           {product.name}
                         </SelectItem>
                       ))}
@@ -168,7 +168,7 @@ export const TaskAssignForm = ({ children, onSubmit }: TaskAssignFormProps) => {
                       </FormControl>
                       <SelectContent>
                         {selectedProduct.stages?.map((stage: any) => (
-                          <SelectItem key={stage.id} value={stage.id}>
+                          <SelectItem key={stage.id || stage._id} value={stage.id || stage._id}>
                             {stage.order}. {stage.name}
                           </SelectItem>
                         ))}

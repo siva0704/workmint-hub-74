@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { 
   getTenants, 
+  getTenant,
+  updateTenant,
   approveTenant, 
   rejectTenant, 
   freezeTenant 
@@ -18,6 +20,21 @@ router.get(
   requireRole(['super_admin']),
   validatePagination,
   getTenants
+);
+
+// Factory Admin routes for their own tenant
+router.get(
+  '/:tenantId',
+  authenticateToken,
+  requireRole(['factory_admin']),
+  getTenant
+);
+
+router.patch(
+  '/:tenantId',
+  authenticateToken,
+  requireRole(['factory_admin']),
+  updateTenant
 );
 
 router.post(

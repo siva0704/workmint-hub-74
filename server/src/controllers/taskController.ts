@@ -4,6 +4,7 @@ import { User } from '../models/User';
 import { Product } from '../models/Product';
 import { ProcessStage } from '../models/ProcessStage';
 import { AuthRequest } from '../types';
+import { getCurrentIndianTime } from '../utils/timeUtils';
 
 export const getTasks = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -17,7 +18,10 @@ export const getTasks = async (req: AuthRequest, res: Response): Promise<void> =
     
     // Tenant scoping
     if (req.user?.role !== 'super_admin') {
-      query.tenantId = req.user?.tenantId;
+      // Convert string tenantId to ObjectId for database query
+      const mongoose = await import('mongoose');
+      const effectiveTenantId = req.query.tenantId as string || req.user?.tenantId;
+      query.tenantId = new mongoose.Types.ObjectId(effectiveTenantId);
     }
 
     // Role-based filtering
@@ -89,6 +93,7 @@ export const getTasks = async (req: AuthRequest, res: Response): Promise<void> =
 
 export const createTask = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+
     const {
       employeeId,
       productId,
@@ -101,20 +106,20 @@ export const createTask = async (req: AuthRequest, res: Response): Promise<void>
 
     // Verify employee exists and belongs to same tenant
     const employee = await User.findById(employeeId);
-    if (!employee || employee.tenantId?.toString() !== req.user?.tenantId) {
+    if (!employee || employee.tenantId?.toString() !== req.user?.tenantId?.toString()) {
       res.status(400).json({
         success: false,
-        message: 'Invalid employee',
+        message: 'Invalid employee - Employee not found in your factory',
       });
       return;
     }
 
     // Verify product exists and belongs to same tenant
     const product = await Product.findById(productId);
-    if (!product || product.tenantId.toString() !== req.user?.tenantId) {
+    if (!product || product.tenantId.toString() !== req.user?.tenantId?.toString()) {
       res.status(400).json({
         success: false,
-        message: 'Invalid product',
+        message: 'Invalid product - Product not found in your factory',
       });
       return;
     }
@@ -145,7 +150,7 @@ export const createTask = async (req: AuthRequest, res: Response): Promise<void>
       deadline: new Date(deadline),
       notes,
       assignedBy: req.user?.id,
-      assignedAt: new Date(),
+      assignedAt: getCurrentIndianTime(),
     });
 
     res.status(201).json({
@@ -186,10 +191,10 @@ export const updateTaskProgress = async (req: AuthRequest, res: Response): Promi
     }
 
     // Check tenant access
-    if (req.user?.role !== 'super_admin' && task.tenantId.toString() !== req.user?.tenantId) {
+    if (req.user?.role !== 'super_admin' && task.tenantId.toString() !== req.user?.tenantId?.toString()) {
       res.status(403).json({
         success: false,
-        message: 'Access denied',
+        message: 'Access denied - Task not found in your factory',
       });
       return;
     }
@@ -208,7 +213,7 @@ export const updateTaskProgress = async (req: AuthRequest, res: Response): Promi
     // Update status based on completion
     if (completedQty >= task.targetQty) {
       task.status = 'completed';
-      task.completedAt = new Date();
+      task.completedAt = getCurrentIndianTime();
     }
 
     await task.save();
@@ -251,10 +256,10 @@ export const confirmTask = async (req: AuthRequest, res: Response): Promise<void
     }
 
     // Check tenant access
-    if (task.tenantId.toString() !== req.user?.tenantId) {
+    if (task.tenantId.toString() !== req.user?.tenantId?.toString()) {
       res.status(403).json({
         success: false,
-        message: 'Access denied',
+        message: 'Access denied - Task not found in your factory',
       });
       return;
     }
@@ -263,7 +268,7 @@ export const confirmTask = async (req: AuthRequest, res: Response): Promise<void
     
     task.completedQty = finalQty;
     task.status = 'confirmed';
-    task.confirmedAt = new Date();
+    task.confirmedAt = getCurrentIndianTime();
     await task.save();
 
     // Create residual task if partial confirmation
@@ -281,7 +286,7 @@ export const confirmTask = async (req: AuthRequest, res: Response): Promise<void
         deadline: task.deadline,
         notes: `Residual task from partial completion. Original task: ${task._id}`,
         assignedBy: req.user?.id,
-        assignedAt: new Date(),
+        assignedAt: getCurrentIndianTime(),
       });
     }
 
@@ -334,10 +339,10 @@ export const rejectTask = async (req: AuthRequest, res: Response): Promise<void>
     }
 
     // Check tenant access
-    if (task.tenantId.toString() !== req.user?.tenantId) {
+    if (task.tenantId.toString() !== req.user?.tenantId?.toString()) {
       res.status(403).json({
         success: false,
-        message: 'Access denied',
+        message: 'Access denied - Task not found in your factory',
       });
       return;
     }
@@ -353,6 +358,61 @@ export const rejectTask = async (req: AuthRequest, res: Response): Promise<void>
     });
   } catch (error) {
     console.error('Reject task error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+export const deleteTask = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { taskId } = req.params;
+
+    const task = await Task.findById(taskId);
+    if (!task) {
+      res.status(404).json({
+        success: false,
+        message: 'Task not found',
+      });
+      return;
+    }
+
+    // Only supervisors and factory admins can delete tasks
+    if (req.user?.role !== 'supervisor' && req.user?.role !== 'factory_admin') {
+      res.status(403).json({
+        success: false,
+        message: 'Only supervisors and factory admins can delete tasks',
+      });
+      return;
+    }
+
+    // Check tenant access
+    if (task.tenantId.toString() !== req.user?.tenantId?.toString()) {
+      res.status(403).json({
+        success: false,
+        message: 'Access denied - Task not found in your factory',
+      });
+      return;
+    }
+
+    // Only allow deletion of active or pending tasks
+    if (task.status === 'confirmed' || task.status === 'completed') {
+      res.status(400).json({
+        success: false,
+        message: 'Cannot delete confirmed or completed tasks',
+      });
+      return;
+    }
+
+    await Task.findByIdAndDelete(taskId);
+
+    res.json({
+      success: true,
+      message: 'Task deleted successfully',
+    });
+  } catch (error) {
+    console.error('Delete task error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',

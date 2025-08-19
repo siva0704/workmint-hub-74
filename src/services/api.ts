@@ -90,7 +90,9 @@ class ApiService {
       const data = await response.json();
 
       if (!response.ok) {
-        throw new Error(data.message || 'API request failed');
+        const error = new Error(data.message || 'API request failed') as any;
+        error.response = { data };
+        throw error;
       }
 
       return data;
@@ -144,10 +146,10 @@ class ApiService {
   }
 
   // Authentication Endpoints
-  async login(email: string, password: string) {
+  async login(loginData: { email?: string; autoId?: string; password: string }) {
     return this.request<{ user: any; tenant: any; token: string; refreshToken?: string }>('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify(loginData),
     });
   }
 
@@ -167,7 +169,21 @@ class ApiService {
     return this.request<any>(`/sa/tenants?page=${page}&limit=${limit}`);
   }
 
+  async getTenant(tenantId: string) {
+    return this.request<any>(`/tenants/${tenantId}`);
+  }
+
+  async updateTenant(tenantId: string, tenantData: any) {
+    return this.request(`/tenants/${tenantId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(tenantData),
+    });
+  }
+
   async approveTenant(tenantId: string, reason?: string) {
+    if (!tenantId || typeof tenantId !== 'string') {
+      throw new Error('Valid Tenant ID is required');
+    }
     return this.request(`/sa/tenants/${tenantId}/approve`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
@@ -175,6 +191,9 @@ class ApiService {
   }
 
   async rejectTenant(tenantId: string, reason: string) {
+    if (!tenantId || typeof tenantId !== 'string') {
+      throw new Error('Valid Tenant ID is required');
+    }
     return this.request(`/sa/tenants/${tenantId}/reject`, {
       method: 'POST',
       body: JSON.stringify({ reason }),
@@ -182,12 +201,19 @@ class ApiService {
   }
 
   async freezeTenant(tenantId: string) {
+    if (!tenantId || typeof tenantId !== 'string') {
+      throw new Error('Valid Tenant ID is required');
+    }
     return this.request(`/sa/tenants/${tenantId}/freeze`, { method: 'POST' });
   }
 
   // User Management
   async getUsers(page: number = 1, limit: number = 10) {
     return this.request<any>(`/users?page=${page}&limit=${limit}`);
+  }
+
+  async getUser(userId: string) {
+    return this.request<any>(`/users/${userId}`);
   }
 
   async createUser(userData: any) {
@@ -201,6 +227,13 @@ class ApiService {
     return this.request(`/users/${userId}`, {
       method: 'PATCH',
       body: JSON.stringify(userData),
+    });
+  }
+
+  async changePassword(userId: string, passwordData: { currentPassword: string; newPassword: string }) {
+    return this.request(`/users/${userId}/change-password`, {
+      method: 'POST',
+      body: JSON.stringify(passwordData),
     });
   }
 
@@ -307,6 +340,10 @@ class ApiService {
       method: 'POST',
       body: JSON.stringify({ reason }),
     });
+  }
+
+  async deleteTask(taskId: string) {
+    return this.request(`/tasks/${taskId}`, { method: 'DELETE' });
   }
 
   // Notifications

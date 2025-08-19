@@ -16,28 +16,9 @@ interface TenantHeaderProps {
   showMenu?: boolean;
 }
 
-// Ensure only one header renders at a time (prevents duplicates if pages also include TenantHeader)
-let tenantHeaderMounted = false;
-
 export const TenantHeader = ({ onMenuClick, showMenu = false }: TenantHeaderProps) => {
   const { tenant, user, logout } = useAuthStore();
   const navigate = useNavigate();
-
-  const [shouldRender, setShouldRender] = useState(false);
-
-  useEffect(() => {
-    if (!tenantHeaderMounted) {
-      tenantHeaderMounted = true;
-      setShouldRender(true);
-    } else {
-      setShouldRender(false);
-    }
-    return () => {
-      tenantHeaderMounted = false;
-    };
-  }, []);
-
-  if (!shouldRender) return null;
 
   const handleLogout = () => {
     logout();

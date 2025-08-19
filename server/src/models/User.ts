@@ -52,7 +52,7 @@ const userSchema = new Schema<IUser>({
 });
 
 // Indexes for performance
-userSchema.index({ email: 1 });
+userSchema.index({ email: 1 }, { unique: true });
 userSchema.index({ tenantId: 1, role: 1 });
 userSchema.index({ autoId: 1 });
 
@@ -78,9 +78,13 @@ userSchema.methods.comparePassword = async function(candidatePassword: string): 
 userSchema.statics.generateAutoId = async function(role: UserRole, tenantId?: string): Promise<string> {
   const prefix = role === 'employee' ? 'EMP' : role === 'supervisor' ? 'SUP' : 'ADM';
   
-  // Find the highest existing auto ID for this tenant and role
+  // Find the highest existing auto ID for this role (ignore tenant for first user)
   const query: any = { role };
-  if (tenantId) query.tenantId = tenantId;
+  if (tenantId) {
+    // Convert string tenantId to ObjectId if needed
+    const mongoose = await import('mongoose');
+    query.tenantId = mongoose.Types.ObjectId.isValid(tenantId) ? tenantId : new mongoose.Types.ObjectId(tenantId);
+  }
   
   const lastUser = await this.findOne(query).sort({ autoId: -1 });
   
@@ -92,13 +96,19 @@ userSchema.statics.generateAutoId = async function(role: UserRole, tenantId?: st
     }
   }
   
-  return `${prefix}${String(nextNumber).padStart(3, '0')}`;
+  // Generate a unique autoId with timestamp to avoid conflicts
+  const timestamp = Date.now().toString().slice(-4);
+  return `${prefix}${String(nextNumber).padStart(3, '0')}${timestamp}`;
 };
 
-// Remove password from JSON output
+// Remove password from JSON output and convert ObjectId to string
 userSchema.methods.toJSON = function() {
   const userObject = this.toObject();
   delete userObject.password;
+  userObject._id = userObject._id.toString();
+  if (userObject.tenantId) {
+    userObject.tenantId = userObject.tenantId.toString();
+  }
   return userObject;
 };
 

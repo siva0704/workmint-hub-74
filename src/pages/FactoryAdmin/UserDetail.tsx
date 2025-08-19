@@ -1,31 +1,45 @@
-import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, Edit, Phone, Mail, UserIcon, Calendar, Shield } from 'lucide-react';
-import { MobileLayout } from '@/components/layout/MobileLayout';
+import { ArrowLeft, Edit, Phone, Mail, UserIcon, Calendar, Shield, Loader2 } from 'lucide-react';
 import { UserInviteForm } from '@/components/forms/UserInviteForm';
 import { User, UserRole } from '@/types';
-
-// Mock data - in real app this would come from API
-const mockUser: User = {
-  id: '1',
-  autoId: 'EMP001',
-  name: 'John Smith',
-  email: 'john.smith@factory.com',
-  mobile: '+1234567890',
-  role: 'employee',
-  tenantId: 'tenant1',
-  isActive: true,
-  createdAt: '2024-01-15T09:00:00Z'
-};
+import { useUser } from '@/hooks/useApi';
+import { useToast } from '@/hooks/use-toast';
 
 export const UserDetailPage = () => {
   const { userId } = useParams();
   const navigate = useNavigate();
-  const [user, setUser] = useState<User>(mockUser);
+  const { toast } = useToast();
+  
+  // Fetch real user data
+  const { data: user, isLoading, error } = useUser(userId!);
+
+  if (isLoading) {
+    return (
+      <div className="p-4 flex items-center justify-center min-h-[50vh]">
+        <div className="flex items-center gap-2">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          <span>Loading user details...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (error || !user) {
+    return (
+      <div className="p-4 flex items-center justify-center min-h-[50vh]">
+        <div className="text-center">
+          <p className="text-muted-foreground">Failed to load user details</p>
+          <Button onClick={() => navigate('/users')} className="mt-4">
+            Back to Users
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
@@ -56,9 +70,7 @@ export const UserDetailPage = () => {
   };
 
   return (
-    <MobileLayout>
-      
-      <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
           <Button
@@ -163,6 +175,5 @@ export const UserDetailPage = () => {
           </CardContent>
         </Card>
       </div>
-    </MobileLayout>
   );
 };

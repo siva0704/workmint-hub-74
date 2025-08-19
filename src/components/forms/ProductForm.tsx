@@ -13,8 +13,8 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { useToast } from '@/hooks/use-toast';
 
 const productSchema = z.object({
-  name: z.string().min(1, 'Product name is required'),
-  description: z.string().min(1, 'Description is required'),
+  name: z.string().min(2, 'Product name must be at least 2 characters'),
+  description: z.string().min(10, 'Description must be at least 10 characters'),
 });
 
 type ProductFormData = z.infer<typeof productSchema>;

@@ -52,10 +52,12 @@ const initialSettings: GlobalSettings = {
   },
 };
 
+import { formatAuditTimestamp } from '@/utils/timeUtils';
+
 const mockAuditLogs = [
-  { id: 1, action: 'Tenant Approved', user: 'super_admin', timestamp: '2024-01-15 10:30:00', details: 'Steel Manufacturing Co.' },
-  { id: 2, action: 'Settings Updated', user: 'super_admin', timestamp: '2024-01-15 09:15:00', details: 'Password policy modified' },
-  { id: 3, action: 'Tenant Rejected', user: 'super_admin', timestamp: '2024-01-14 16:45:00', details: 'Failed security review' },
+  { id: 1, action: 'Tenant Approved', user: 'super_admin', timestamp: formatAuditTimestamp(new Date(Date.now() - 2 * 60 * 60 * 1000)), details: 'Steel Manufacturing Co.' },
+  { id: 2, action: 'Settings Updated', user: 'super_admin', timestamp: formatAuditTimestamp(new Date(Date.now() - 4 * 60 * 60 * 1000)), details: 'Password policy modified' },
+  { id: 3, action: 'Tenant Rejected', user: 'super_admin', timestamp: formatAuditTimestamp(new Date(Date.now() - 24 * 60 * 60 * 1000)), details: 'Failed security review' },
 ];
 
 export const SuperAdminSettings = () => {
@@ -108,8 +110,7 @@ export const SuperAdminSettings = () => {
   };
 
   return (
-    <MobileLayout>
-      <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6">
         <div>
           <h1 className="text-hero">Global Settings</h1>
           <p className="text-muted-foreground mt-1">Configure system-wide policies and preferences</p>
@@ -372,6 +373,5 @@ export const SuperAdminSettings = () => {
           Save Global Settings
         </Button>
       </div>
-    </MobileLayout>
   );
 };

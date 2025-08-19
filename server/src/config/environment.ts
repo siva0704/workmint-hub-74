@@ -6,7 +6,7 @@ export const config = {
   server: {
     port: parseInt(process.env.PORT || '3000'),
     nodeEnv: process.env.NODE_ENV || 'development',
-    corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+    corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173,http://localhost:8080,http://localhost:8081',
   },
   mongodb: {
     uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/workmint-hub',

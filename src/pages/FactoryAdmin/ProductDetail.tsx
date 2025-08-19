@@ -1,45 +1,70 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Edit, Settings, Clock } from 'lucide-react';
+import { ArrowLeft, Edit, Settings, Clock, Loader2 } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { ProcessStageManager } from '@/components/forms/ProcessStageManager';
 import { ProductForm } from '@/components/forms/ProductForm';
 import { Product, ProcessStage } from '@/types';
-
-// Mock data - in real app this would come from API
-const mockProduct: Product = {
-  id: '1',
-  tenantId: 'tenant1',
-  name: 'Steel Beam A100',
-  description: 'High-strength structural steel beam for construction projects',
-  isActive: true,
-  createdAt: '2024-01-10T10:00:00Z',
-  stages: [
-    { id: 's1', productId: '1', name: 'Cutting', description: 'Cut raw materials to size', order: 1, isActive: true },
-    { id: 's2', productId: '1', name: 'Welding', description: 'Weld components together', order: 2, isActive: true },
-    { id: 's3', productId: '1', name: 'Quality Check', description: 'Final inspection', order: 3, isActive: true }
-  ]
-};
+import { useProduct } from '@/hooks/useApi';
+import { useToast } from '@/hooks/use-toast';
 
 export const ProductDetailPage = () => {
   const { productId } = useParams();
   const navigate = useNavigate();
-  const [product, setProduct] = useState<Product>(mockProduct);
+  const { toast } = useToast();
+
+  const { data: productData, isLoading, error } = useProduct(productId || '');
+
+  useEffect(() => {
+    if (error) {
+      toast({
+        title: 'Error',
+        description: 'Failed to load product details',
+        variant: 'destructive',
+      });
+      navigate('/products');
+    }
+  }, [error, navigate, toast]);
+
+  const product = productData?.data;
 
   const handleStagesUpdate = (updatedStages: ProcessStage[]) => {
-    setProduct(prev => ({ ...prev, stages: updatedStages }));
+    // The stages will be refetched automatically by the mutation hooks
   };
+
+  if (isLoading) {
+    return (
+      <div className="p-4 flex items-center justify-center min-h-[50vh]">
+        <div className="flex items-center gap-2">
+          <Loader2 className="w-6 h-6 animate-spin" />
+          <span>Loading product details...</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (!product) {
+    return (
+      <div className="p-4 flex items-center justify-center min-h-[50vh]">
+        <div className="text-center">
+          <p className="text-muted-foreground">Product not found</p>
+          <Button onClick={() => navigate('/products')} className="mt-4">
+            Back to Products
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString();
   };
 
   return (
-    <MobileLayout>
-      <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6">
         {/* Header */}
         <div className="flex items-center gap-3">
           <Button
@@ -132,6 +157,5 @@ export const ProductDetailPage = () => {
           </CardContent>
         </Card>
       </div>
-    </MobileLayout>
   );
 };

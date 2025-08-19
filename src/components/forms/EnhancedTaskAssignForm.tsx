@@ -13,6 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { User, Save, Target, Calendar, ClipboardList } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCreateTask } from '@/hooks/useApi';
+import { format } from 'date-fns';
 
 const taskAssignSchema = z.object({
   employeeId: z.string().min(1, 'Please select an employee'),
@@ -97,7 +98,8 @@ export const EnhancedTaskAssignForm = () => {
     try {
       const taskData = {
         ...data,
-        deadlineWeek: data.deadlineWeek.toISOString(),
+        deadlineWeek: format(data.deadlineWeek, 'yyyy-\'W\'II'),
+        deadline: data.deadlineWeek.toISOString(),
         assignedBy: 'current-supervisor-id', // Get from auth
         tenantId: 'current-tenant-id', // Get from auth
       };

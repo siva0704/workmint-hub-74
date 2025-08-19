@@ -3,9 +3,10 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Clock, Factory, Users, Activity, CheckCircle, XCircle, Building2 } from 'lucide-react';
+import { Clock, Factory, Users, Activity, CheckCircle, XCircle, Building2, TrendingUp } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { useTenants, useApproveTenant, useRejectTenant } from '@/hooks/useApi';
+import { formatActivityTime } from '@/utils/timeUtils';
 import { useAuthStore } from '@/stores/auth';
 import { useNavigate } from 'react-router-dom';
 
@@ -61,8 +62,7 @@ export const SuperAdminDashboard = () => {
   };
 
   return (
-    <MobileLayout>
-      <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-slate-900">Super Admin Dashboard</h1>
           <p className="text-slate-600 mt-1">Manage factory registrations and system oversight</p>
@@ -139,7 +139,7 @@ export const SuperAdminDashboard = () => {
               </div>
             ) : pendingTenants.length > 0 ? (
               pendingTenants.map((tenant: any) => (
-              <div key={tenant.id} className="border rounded-lg p-4 space-y-3">
+              <div key={tenant._id || tenant.id} className="border rounded-lg p-4 space-y-3">
                 <div className="flex justify-between items-start">
                   <div>
                     <h3 className="font-semibold">{tenant.factoryName}</h3>
@@ -156,7 +156,7 @@ export const SuperAdminDashboard = () => {
                 <div className="flex gap-2">
                   <Button
                     size="sm"
-                    onClick={() => handleApprove(tenant.id)}
+                    onClick={() => handleApprove(tenant._id || tenant.id)}
                     disabled={approveMutation.isPending}
                     className="flex-1"
                   >
@@ -166,7 +166,7 @@ export const SuperAdminDashboard = () => {
                   <Button
                     size="sm"
                     variant="destructive"
-                    onClick={() => handleReject(tenant.id)}
+                    onClick={() => handleReject(tenant._id || tenant.id)}
                     disabled={rejectMutation.isPending}
                     className="flex-1"
                   >
@@ -182,6 +182,33 @@ export const SuperAdminDashboard = () => {
                 <p>No pending approvals</p>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Activity */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <TrendingUp className="w-5 h-5" />
+              Recent Activity
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {tenants.slice(0, 5).map((tenant: any) => (
+              <div key={tenant._id || tenant.id} className="flex items-center gap-3 p-3 border border-slate-200 rounded-lg">
+                <Building2 className="w-4 h-4 text-slate-600" />
+                <div className="flex-1">
+                  <p className="font-medium text-sm text-slate-900">
+                    {tenant.status === 'pending' ? 'New factory registration' : 
+                     tenant.status === 'approved' ? 'Factory approved' : 'Factory status updated'}
+                  </p>
+                  <p className="text-sm text-slate-600">{tenant.factoryName}</p>
+                </div>
+                <Badge variant="secondary" className="text-xs bg-slate-100 text-slate-700">
+                  {formatActivityTime(tenant.createdAt || new Date())}
+                </Badge>
+              </div>
+            ))}
           </CardContent>
         </Card>
 
@@ -212,6 +239,5 @@ export const SuperAdminDashboard = () => {
           </Button>
         </div>
       </div>
-    </MobileLayout>
   );
 };

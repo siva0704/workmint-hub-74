@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { User } from '../models/User';
 import { AuthRequest } from '../types';
+import mongoose from 'mongoose';
 
 export const getUsers = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
@@ -11,11 +12,15 @@ export const getUsers = async (req: AuthRequest, res: Response): Promise<void> =
 
     const query: any = {};
     
-    // Tenant scoping
+    // Tenant scoping - use tenantId from middleware or user
     if (req.user?.role !== 'super_admin') {
-      query.tenantId = req.user?.tenantId;
+      // Convert string tenantId to ObjectId for database query
+      const mongoose = await import('mongoose');
+      const effectiveTenantId = tenantId || req.user?.tenantId;
+      query.tenantId = new mongoose.Types.ObjectId(effectiveTenantId);
     } else if (tenantId) {
-      query.tenantId = tenantId;
+      const mongoose = await import('mongoose');
+      query.tenantId = new mongoose.Types.ObjectId(tenantId);
     }
 
     if (role) query.role = role;
@@ -50,14 +55,54 @@ export const getUsers = async (req: AuthRequest, res: Response): Promise<void> =
   }
 };
 
+export const getUser = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.params;
+    const tenantId = req.query.tenantId as string;
+
+    const query: any = { _id: userId };
+    
+    // Tenant scoping - use tenantId from middleware or user
+    if (req.user?.role !== 'super_admin') {
+      // Convert string tenantId to ObjectId for database query
+      const effectiveTenantId = tenantId || req.user?.tenantId;
+      query.tenantId = new mongoose.Types.ObjectId(effectiveTenantId);
+    } else if (tenantId) {
+      query.tenantId = new mongoose.Types.ObjectId(tenantId);
+    }
+
+    const user = await User.findOne(query).populate('tenantId', 'factoryName');
+
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+      return;
+    }
+
+    res.json({
+      success: true,
+      data: user.toJSON(),
+    });
+  } catch (error) {
+    console.error('Get user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
 export const createUser = async (req: AuthRequest, res: Response): Promise<void> => {
   try {
+
     const { name, email, mobile, role, password } = req.body;
     const tenantId = req.user?.tenantId;
 
-    // Check if email already exists
-    if (email) {
-      const existingUser = await User.findOne({ email });
+    // Check if email already exists (only if email is provided)
+    if (email && email.trim()) {
+      const existingUser = await User.findOne({ email: email.toLowerCase() });
       if (existingUser) {
         res.status(400).json({
           success: false,
@@ -74,11 +119,11 @@ export const createUser = async (req: AuthRequest, res: Response): Promise<void>
     const user = await User.create({
       autoId,
       name,
-      email: email || `${autoId.toLowerCase()}@${tenantId}.local`,
+      email: email && email.trim() ? email.toLowerCase() : `${autoId.toLowerCase()}@${tenantId}.local`,
       mobile,
       password,
       role,
-      tenantId,
+      tenantId: new mongoose.Types.ObjectId(tenantId),
       isActive: true,
     });
 
@@ -104,6 +149,10 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
     const { userId } = req.params;
     const updates = req.body;
 
+    console.log('updateUser called with userId:', userId);
+    console.log('req.user:', req.user);
+    console.log('updates:', updates);
+
     // Remove sensitive fields from updates
     delete updates.password;
     delete updates.role;
@@ -111,6 +160,7 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
 
     const user = await User.findById(userId);
     if (!user) {
+      console.log('User not found for ID:', userId);
       res.status(404).json({
         success: false,
         message: 'User not found',
@@ -118,17 +168,24 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
       return;
     }
 
+    console.log('Found user:', user.toJSON());
+
     // Check tenant access
-    if (req.user?.role !== 'super_admin' && user.tenantId?.toString() !== req.user?.tenantId) {
+    if (req.user?.role !== 'super_admin' && user.tenantId?.toString() !== req.user?.tenantId?.toString()) {
+      console.log('Access denied - tenant mismatch');
+      console.log('user.tenantId:', user.tenantId?.toString());
+      console.log('req.user?.tenantId:', req.user?.tenantId?.toString());
       res.status(403).json({
         success: false,
-        message: 'Access denied',
+        message: 'Access denied - User not found in your factory',
       });
       return;
     }
 
     Object.assign(user, updates);
     await user.save();
+
+    console.log('User updated successfully');
 
     res.json({
       success: true,
@@ -137,6 +194,82 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
     });
   } catch (error) {
     console.error('Update user error:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server error',
+    });
+  }
+};
+
+export const changePassword = async (req: AuthRequest, res: Response): Promise<void> => {
+  try {
+    const { userId } = req.params;
+    const { currentPassword, newPassword } = req.body;
+
+    console.log('changePassword called with userId:', userId);
+    console.log('req.user:', req.user);
+
+    if (!currentPassword || !newPassword) {
+      res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required',
+      });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      res.status(400).json({
+        success: false,
+        message: 'New password must be at least 8 characters long',
+      });
+      return;
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      console.log('User not found for password change:', userId);
+      res.status(404).json({
+        success: false,
+        message: 'User not found',
+      });
+      return;
+    }
+
+    console.log('Found user for password change:', user.toJSON());
+
+    // Check tenant access
+    if (req.user?.role !== 'super_admin' && user.tenantId?.toString() !== req.user?.tenantId?.toString()) {
+      console.log('Access denied for password change - tenant mismatch');
+      res.status(403).json({
+        success: false,
+        message: 'Access denied - User not found in your factory',
+      });
+      return;
+    }
+
+    // Verify current password
+    const isCurrentPasswordValid = await (user as any).comparePassword(currentPassword);
+    if (!isCurrentPasswordValid) {
+      console.log('Current password is incorrect for user:', userId);
+      res.status(400).json({
+        success: false,
+        message: 'Current password is incorrect',
+      });
+      return;
+    }
+
+    // Update password
+    user.password = newPassword;
+    await user.save();
+
+    console.log('Password changed successfully for user:', userId);
+
+    res.json({
+      success: true,
+      message: 'Password changed successfully',
+    });
+  } catch (error) {
+    console.error('Change password error:', error);
     res.status(500).json({
       success: false,
       message: 'Internal server error',
@@ -158,10 +291,10 @@ export const deleteUser = async (req: AuthRequest, res: Response): Promise<void>
     }
 
     // Check tenant access
-    if (req.user?.role !== 'super_admin' && user.tenantId?.toString() !== req.user?.tenantId) {
+    if (req.user?.role !== 'super_admin' && user.tenantId?.toString() !== req.user?.tenantId?.toString()) {
       res.status(403).json({
         success: false,
-        message: 'Access denied',
+        message: 'Access denied - User not found in your factory',
       });
       return;
     }

@@ -8,10 +8,10 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { CheckCircle, XCircle, Clock, Search, Filter, Eye } from 'lucide-react';
+import { CheckCircle, XCircle, Clock, Search, Filter, Eye, Trash2 } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Task } from '@/types';
-import { useTasks, useConfirmTask, useRejectTask } from '@/hooks/useApi';
+import { useTasks, useConfirmTask, useRejectTask, useDeleteTask } from '@/hooks/useApi';
 import { useToast } from '@/hooks/use-toast';
 
 export const TaskReviewPage = () => {
@@ -20,11 +20,15 @@ export const TaskReviewPage = () => {
   const [selectedTask, setSelectedTask] = useState<Task | null>(null);
   const [reviewNotes, setReviewNotes] = useState('');
   const [partialQuantity, setPartialQuantity] = useState(0);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [taskToDelete, setTaskToDelete] = useState<string | null>(null);
 
   // Fetch tasks from API
   const { data: tasksData, refetch } = useTasks();
   const confirmTaskMutation = useConfirmTask();
   const rejectTaskMutation = useRejectTask();
+  const deleteTaskMutation = useDeleteTask();
   const { toast } = useToast();
 
   const tasks = tasksData?.data || [];
@@ -84,6 +88,37 @@ export const TaskReviewPage = () => {
     }
   };
 
+  const handleDelete = async (taskId: string, reason?: string) => {
+    try {
+      await deleteTaskMutation.mutateAsync(taskId);
+      
+      const deleteReason = reason || 'Task deleted by supervisor';
+      toast({ 
+        title: 'Task Deleted',
+        description: `Task has been deleted successfully. ${reason ? `Reason: ${reason}` : ''}`
+      });
+      
+      setSelectedTask(null);
+      setShowDeleteDialog(false);
+      setDeleteReason('');
+      setTaskToDelete(null);
+      refetch();
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    }
+  };
+
+  const openDeleteDialog = (taskId: string) => {
+    setTaskToDelete(taskId);
+    setShowDeleteDialog(true);
+  };
+
+  const confirmDelete = () => {
+    if (taskToDelete) {
+      handleDelete(taskToDelete, deleteReason);
+    }
+  };
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'completed':
@@ -104,8 +139,7 @@ export const TaskReviewPage = () => {
   };
 
   return (
-    <MobileLayout>
-      <div className="p-4 space-y-6 pb-20">
+    <div className="p-4 space-y-6 pb-20">
         <div className="flex items-center justify-between">
           <h1 className="text-hero">Task Review</h1>
         </div>
@@ -291,6 +325,18 @@ export const TaskReviewPage = () => {
                         <CheckCircle className="h-4 w-4 mr-1" />
                         Quick Approve
                       </Button>
+
+                      {/* Delete button - only for active tasks */}
+                      {task.status === 'active' && (
+                        <Button
+                          onClick={() => openDeleteDialog(task.id)}
+                          size="sm"
+                          variant="destructive"
+                        >
+                          <Trash2 className="h-4 w-4 mr-1" />
+                          Delete
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -339,7 +385,50 @@ export const TaskReviewPage = () => {
             )}
           </TabsContent>
         </Tabs>
+
+        {/* Delete Confirmation Dialog */}
+        <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Delete Task</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Are you sure you want to delete this task? This action cannot be undone.
+              </p>
+              <div className="space-y-2">
+                <Label htmlFor="deleteReason">Reason for deletion (optional)</Label>
+                <Textarea
+                  id="deleteReason"
+                  value={deleteReason}
+                  onChange={(e) => setDeleteReason(e.target.value)}
+                  placeholder="e.g., Assigned to wrong employee, Task no longer needed..."
+                  rows={3}
+                />
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowDeleteDialog(false);
+                    setDeleteReason('');
+                    setTaskToDelete(null);
+                  }}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={confirmDelete}
+                  className="flex-1"
+                >
+                  Delete Task
+                </Button>
+              </div>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
-    </MobileLayout>
   );
 };

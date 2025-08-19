@@ -9,6 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { GripVertical, Plus, Edit, Trash2, ToggleLeft, ToggleRight } from 'lucide-react';
 import { ProcessStage } from '@/types';
 import { useToast } from '@/hooks/use-toast';
+import { useCreateProcessStage, useUpdateProcessStage } from '@/hooks/useApi';
 
 interface ProcessStageManagerProps {
   productId: string;
@@ -28,52 +29,61 @@ export const ProcessStageManager = ({ productId, stages, onStagesUpdate, childre
   const [formData, setFormData] = useState<StageFormData>({ name: '', description: '' });
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
   const { toast } = useToast();
+  const createStageMutation = useCreateProcessStage();
+  const updateStageMutation = useUpdateProcessStage();
 
   const resetForm = () => {
     setFormData({ name: '', description: '' });
     setEditingStage(null);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!formData.name.trim()) {
+    if (!formData.name.trim() || formData.name.trim().length < 2) {
       toast({
         title: 'Error',
-        description: 'Stage name is required',
+        description: 'Stage name must be at least 2 characters',
         variant: 'destructive',
       });
       return;
     }
 
-    if (editingStage) {
-      const updatedStages = stages.map(stage =>
-        stage.id === editingStage.id
-          ? { ...stage, name: formData.name, description: formData.description }
-          : stage
-      );
-      onStagesUpdate(updatedStages);
+    if (!formData.description.trim() || formData.description.trim().length < 5) {
       toast({
-        title: 'Success',
-        description: 'Stage updated successfully',
+        title: 'Error',
+        description: 'Description must be at least 5 characters',
+        variant: 'destructive',
       });
-    } else {
-      const newStage: ProcessStage = {
-        id: `stage_${Date.now()}`,
-        productId,
-        name: formData.name,
-        description: formData.description,
-        order: stages.length + 1,
-        isActive: true,
-      };
-      onStagesUpdate([...stages, newStage]);
-      toast({
-        title: 'Success',
-        description: 'Stage added successfully',
-      });
+      return;
     }
 
-    resetForm();
+    try {
+      if (editingStage) {
+        await updateStageMutation.mutateAsync({
+          productId,
+          stageId: editingStage.id,
+          stageData: {
+            name: formData.name,
+            description: formData.description,
+          }
+        });
+      } else {
+        await createStageMutation.mutateAsync({
+          productId,
+          stageData: {
+            name: formData.name,
+            description: formData.description,
+            order: stages.length + 1,
+          }
+        });
+      }
+      
+      resetForm();
+      onStagesUpdate([]); // This will trigger a refetch
+    } catch (error) {
+      console.error('Process stage error:', error);
+    }
   };
 
   const handleEdit = (stage: ProcessStage) => {

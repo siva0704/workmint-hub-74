@@ -4,7 +4,8 @@ import {
   createTask, 
   updateTaskProgress, 
   confirmTask, 
-  rejectTask 
+  rejectTask,
+  deleteTask
 } from '../controllers/taskController';
 import { authenticateToken, requireRole } from '../middleware/auth';
 import { enforceTenantScope } from '../middleware/tenantScope';
@@ -57,6 +58,14 @@ router.post(
   requireRole(['supervisor', 'factory_admin']),
   enforceTenantScope,
   rejectTask
+);
+
+// Delete task (supervisors and factory admins only)
+router.delete(
+  '/:taskId',
+  requireRole(['supervisor', 'factory_admin']),
+  enforceTenantScope,
+  deleteTask
 );
 
 export default router;

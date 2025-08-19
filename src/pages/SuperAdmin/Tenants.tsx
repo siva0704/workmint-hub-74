@@ -1,3 +1,4 @@
+// tenant.tsx file
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -53,7 +54,7 @@ export const SuperAdminTenants = () => {
   };
 
   const renderTenantItem = (tenant: Tenant) => (
-    <Card key={tenant.id}>
+    <Card key={tenant._id}>
       <CardContent className="p-4 space-y-4">
         <div className="flex justify-between items-start">
           <div className="flex-1">
@@ -114,8 +115,7 @@ export const SuperAdminTenants = () => {
 
 
   return (
-    <MobileLayout>
-      <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6">
         {/* Header */}
         <div className="flex justify-between items-center">
           <div>
@@ -160,7 +160,7 @@ export const SuperAdminTenants = () => {
 
           <TabsContent value="pending" className="space-y-4">
             {pendingTenants.map((tenant) => (
-              <Card key={tenant.id}>
+              <Card key={tenant._id}>
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
@@ -196,7 +196,7 @@ export const SuperAdminTenants = () => {
 
           <TabsContent value="active" className="space-y-4">
             {activeTenants.map((tenant) => (
-              <Card key={tenant.id}>
+              <Card key={tenant._id}>
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
@@ -212,7 +212,7 @@ export const SuperAdminTenants = () => {
 
           <TabsContent value="rejected" className="space-y-4">
             {rejectedTenants.map((tenant) => (
-              <Card key={tenant.id}>
+              <Card key={tenant._id}>
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
@@ -233,7 +233,7 @@ export const SuperAdminTenants = () => {
 
           <TabsContent value="frozen" className="space-y-4">
             {frozenTenants.map((tenant) => (
-              <Card key={tenant.id}>
+              <Card key={tenant._id}>
                 <CardContent className="p-4">
                   <div className="flex justify-between items-start">
                     <div className="flex-1">
@@ -257,6 +257,5 @@ export const SuperAdminTenants = () => {
           </Card>
         )}
       </div>
-    </MobileLayout>
   );
 };

@@ -19,8 +19,8 @@ export const useLogin = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ email, password }: { email: string; password: string }) =>
-      api.login(email, password),
+    mutationFn: (loginData: { email?: string; autoId?: string; password: string }) =>
+      api.login(loginData),
     onSuccess: (data) => {
       // Store tokens
       if (data.data.refreshToken) {
@@ -66,6 +66,15 @@ export const useUsers = (page: number = 1, limit: number = 10) => {
   });
 };
 
+export const useUser = (userId: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.USERS, userId],
+    queryFn: () => api.getUser(userId),
+    enabled: !!userId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
 export const useCreateUser = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -101,6 +110,22 @@ export const useUpdateUser = () => {
   });
 };
 
+export const useChangePassword = () => {
+  const { toast } = useToast();
+
+  return useMutation({
+    mutationFn: ({ userId, passwordData }: { userId: string; passwordData: { currentPassword: string; newPassword: string } }) =>
+      api.changePassword(userId, passwordData),
+    onSuccess: () => {
+      toast({
+        title: 'Password Changed',
+        description: 'Password has been changed successfully.',
+      });
+    },
+    onError: (error) => handleApiError(error, toast),
+  });
+};
+
 export const useBulkImportUsers = () => {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -123,6 +148,15 @@ export const useProducts = (page: number = 1, limit: number = 10) => {
   return useQuery({
     queryKey: [QUERY_KEYS.PRODUCTS, page, limit],
     queryFn: () => api.getProducts(page, limit),
+    staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useProduct = (productId: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.PRODUCTS, productId],
+    queryFn: () => api.getProduct(productId),
+    enabled: !!productId,
     staleTime: 5 * 60 * 1000,
   });
 };
@@ -156,6 +190,43 @@ export const useUpdateProduct = () => {
       toast({
         title: 'Product Updated',
         description: 'Product has been updated successfully.',
+      });
+    },
+    onError: (error) => handleApiError(error, toast),
+  });
+};
+
+// Process Stage Management Hooks
+export const useCreateProcessStage = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ productId, stageData }: { productId: string; stageData: any }) =>
+      api.createProcessStage(productId, stageData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCTS] });
+      toast({
+        title: 'Stage Created',
+        description: 'Process stage has been created successfully.',
+      });
+    },
+    onError: (error) => handleApiError(error, toast),
+  });
+};
+
+export const useUpdateProcessStage = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ productId, stageId, stageData }: { productId: string; stageId: string; stageData: any }) =>
+      api.updateProcessStage(productId, stageId, stageData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.PRODUCTS] });
+      toast({
+        title: 'Stage Updated',
+        description: 'Process stage has been updated successfully.',
       });
     },
     onError: (error) => handleApiError(error, toast),
@@ -242,12 +313,56 @@ export const useRejectTask = () => {
   });
 };
 
+export const useDeleteTask = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (taskId: string) => api.deleteTask(taskId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TASKS] });
+      toast({
+        title: 'Task Deleted',
+        description: 'Task has been deleted successfully.',
+      });
+    },
+    onError: (error) => handleApiError(error, toast),
+  });
+};
+
 // Tenant Management Hooks (Super Admin)
 export const useTenants = (page: number = 1, limit: number = 10) => {
   return useQuery({
     queryKey: [QUERY_KEYS.TENANTS, page, limit],
     queryFn: () => api.getTenants(page, limit),
     staleTime: 5 * 60 * 1000,
+  });
+};
+
+export const useTenant = (tenantId?: string) => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.TENANTS, tenantId],
+    queryFn: () => api.getTenant(tenantId!),
+    enabled: !!tenantId,
+    staleTime: 5 * 60 * 1000, // 5 minutes
+  });
+};
+
+export const useUpdateTenant = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ tenantId, tenantData }: { tenantId: string; tenantData: any }) =>
+      api.updateTenant(tenantId, tenantData),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TENANTS] });
+      toast({
+        title: 'Settings Updated',
+        description: 'Factory settings have been updated successfully.',
+      });
+    },
+    onError: (error) => handleApiError(error, toast),
   });
 };
 

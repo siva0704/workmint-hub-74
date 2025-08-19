@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/auth";
 import { TenantHeader } from "@/components/layout/TenantHeader";
 import { RoleNav } from "@/components/layout/RoleNav";
+import { MobileLayout } from "@/components/layout/MobileLayout";
 import { useEffect } from "react";
 
 // Pages
@@ -60,7 +61,7 @@ const App = () => {
         const { state } = JSON.parse(authStorage);
         if (state?.user && state?.isAuthenticated) {
           // Auth state is already restored by Zustand persist
-          console.log('Auth state restored from localStorage');
+  
         }
       } catch (error) {
         console.error('Failed to restore auth state:', error);
@@ -99,7 +100,7 @@ const App = () => {
       return <Navigate to="/dashboard" replace />;
     }
 
-    return <>{children}</>;
+    return <MobileLayout>{children}</MobileLayout>;
   };
 
   return (
@@ -108,8 +109,7 @@ const App = () => {
         <Toaster />
         <Sonner />
         <BrowserRouter>
-          {/* Global header and bottom nav when authenticated, with singleton guards inside components */}
-          {isAuthenticated && <TenantHeader />}
+          {/* Global header and bottom nav when authenticated */}
           <Routes>
             {/* Public Routes */}
             <Route path="/" element={<Landing />} />
@@ -194,7 +194,6 @@ const App = () => {
             
             {/* Fallback route */}
           </Routes>
-          {isAuthenticated && <RoleNav />}
         </BrowserRouter>
       </TooltipProvider>
     </QueryClientProvider>

@@ -2,6 +2,7 @@ import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import { Request, Response, NextFunction } from 'express';
 import type { CorsOptions } from 'cors';
+import { config } from '../config/environment';
 
 // Rate limiting
 export const createRateLimit = (windowMs: number, max: number, message: string) => {
@@ -17,18 +18,11 @@ export const createRateLimit = (windowMs: number, max: number, message: string) 
   });
 };
 
-// General API rate limit
+// General API rate limit (applied to non-auth routes)
 export const apiRateLimit = createRateLimit(
   15 * 60 * 1000, // 15 minutes
   100, // 100 requests per window
   'Too many requests, please try again later'
-);
-
-// Auth rate limit (stricter)
-export const authRateLimit = createRateLimit(
-  15 * 60 * 1000, // 15 minutes
-  5, // 5 attempts per window
-  'Too many login attempts, please try again later'
 );
 
 // Security headers
@@ -57,9 +51,9 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
 };
 
 // CORS configuration
-const allowedOrigins: string[] = (config.server.corsOrigin || 'http://localhost:5173')
+const allowedOrigins: string[] = (config.server.corsOrigin || 'http://localhost:5173,http://localhost:8080,http://localhost:8081')
   .split(',')
-  .map(o => o.trim())
+  .map((o: string) => o.trim())
   .filter(Boolean);
 
 export const corsOptions: CorsOptions = {
@@ -67,6 +61,12 @@ export const corsOptions: CorsOptions = {
     // Allow requests with no origin (e.g., mobile apps, curl, Postman)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
+    
+    // For development, allow any localhost origin
+    if (process.env.NODE_ENV === 'development' && origin?.includes('localhost')) {
+      return callback(null, true);
+    }
+    
     console.log(`CORS blocked origin: ${origin}, allowed: ${allowedOrigins.join(', ')}`);
     return callback(new Error('Not allowed by CORS'));
   },

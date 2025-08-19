@@ -12,8 +12,10 @@ import { useLogin } from '@/hooks/useApi';
 import { Eye, EyeOff, AlertCircle, Factory } from 'lucide-react';
 
 export const Login = () => {
+  const [loginType, setLoginType] = useState<'email' | 'autoId'>('email');
   const [formData, setFormData] = useState({
     email: '',
+    autoId: '',
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -31,10 +33,11 @@ export const Login = () => {
     setError('');
 
     try {
-      const response = await loginMutation.mutateAsync({
-        email: formData.email,
-        password: formData.password,
-      });
+      const loginData = loginType === 'email' 
+        ? { email: formData.email, password: formData.password }
+        : { autoId: formData.autoId, password: formData.password };
+        
+      const response = await loginMutation.mutateAsync(loginData);
       
       // Login with tokens
       authLogin(
@@ -62,16 +65,7 @@ export const Login = () => {
     if (error) setError(''); // Clear error when user starts typing
   };
 
-  const quickLoginOptions = [
-    { email: 'superadmin@factory.com', role: 'Super Admin', password: 'password123' },
-    { email: 'admin@demo-factory.com', role: 'Factory Admin', password: 'password123' },
-    { email: 'supervisor@demo-factory.com', role: 'Supervisor', password: 'password123' },
-    { email: 'employee@demo-factory.com', role: 'Employee', password: 'password123' }
-  ];
 
-  const quickLogin = (email: string) => {
-    setFormData({ email, password: 'password123' });
-  };
 
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -101,15 +95,39 @@ export const Login = () => {
                 </Alert>
               )}
 
+              {/* Login Type Toggle */}
+              <div className="flex gap-2 p-1 bg-slate-100 rounded-lg">
+                <Button
+                  type="button"
+                  variant={loginType === 'email' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setLoginType('email')}
+                >
+                  Factory Admin
+                </Button>
+                <Button
+                  type="button"
+                  variant={loginType === 'autoId' ? 'default' : 'ghost'}
+                  size="sm"
+                  className="flex-1"
+                  onClick={() => setLoginType('autoId')}
+                >
+                  Employee/Supervisor
+                </Button>
+              </div>
+
               <div className="space-y-2">
-                <Label htmlFor="email" className="text-slate-700">Email</Label>
+                <Label htmlFor={loginType} className="text-slate-700">
+                  {loginType === 'email' ? 'Email' : 'Auto ID'}
+                </Label>
                 <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  value={formData.email}
+                  id={loginType}
+                  name={loginType}
+                  type={loginType === 'email' ? 'email' : 'text'}
+                  value={loginType === 'email' ? formData.email : formData.autoId}
                   onChange={handleInputChange}
-                  placeholder="admin@factory.com"
+                  placeholder={loginType === 'email' ? 'admin@factory.com' : 'FA001'}
                   required
                   className="border-slate-300"
                 />
@@ -164,28 +182,7 @@ export const Login = () => {
           </CardContent>
         </Card>
 
-        {/* Quick Login Options for Testing */}
-        <Card className="border-slate-200">
-          <CardHeader>
-            <CardTitle className="text-lg text-slate-900">Quick Login (Demo)</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {quickLoginOptions.map((option) => (
-              <Button
-                key={option.email}
-                variant="outline"
-                size="sm"
-                className="w-full justify-start text-left border-slate-300"
-                onClick={() => quickLogin(option.email)}
-              >
-                <div>
-                  <div className="font-medium text-slate-900">{option.role}</div>
-                  <div className="text-xs text-slate-600">{option.email}</div>
-                </div>
-              </Button>
-            ))}
-          </CardContent>
-        </Card>
+
       </div>
     </div>
   );

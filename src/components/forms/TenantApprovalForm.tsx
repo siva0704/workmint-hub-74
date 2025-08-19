@@ -1,3 +1,4 @@
+// tenantapprovalform.tsx file
 import React from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -19,7 +20,7 @@ const rejectionSchema = z.object({
 
 interface TenantApprovalFormProps {
   tenant: {
-    id: string;
+    _id: string;
     factoryName: string;
     address: string;
     workersCount: number;
@@ -53,12 +54,12 @@ export const TenantApprovalForm: React.FC<TenantApprovalFormProps> = ({
   });
 
   const handleApproval = async (data: z.infer<typeof approvalSchema>) => {
-    await onApprove(tenant.id, data.reason);
+    await onApprove(tenant._id, data.reason);
     approvalForm.reset();
   };
 
   const handleRejection = async (data: z.infer<typeof rejectionSchema>) => {
-    await onReject(tenant.id, data.reason);
+    await onReject(tenant._id, data.reason);
     rejectionForm.reset();
   };
 

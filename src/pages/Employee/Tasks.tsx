@@ -8,10 +8,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { CheckCircle, Clock, AlertCircle, Edit, Save, RefreshCw } from 'lucide-react';
+import { CheckCircle, Clock, AlertCircle, Edit, Save, RefreshCw, XCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Task } from '@/types';
-import { useTasks, useUpdateTaskProgress } from '@/hooks/useApi';
+import { useTasks, useUpdateTaskProgress, useDeleteTask } from '@/hooks/useApi';
 import { useAuthStore } from '@/stores/auth';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
@@ -31,6 +31,7 @@ export const EmployeeTasksPage = () => {
   // Fetch tasks from API
   const { data: tasksData, refetch, isLoading } = useTasks();
   const updateTaskMutation = useUpdateTaskProgress();
+  const deleteTaskMutation = useDeleteTask();
   
   // Role-based access control
   useEffect(() => {
@@ -61,18 +62,19 @@ export const EmployeeTasksPage = () => {
     return deadline <= weekFromNow;
   });
 
-  const handleUpdateQuantity = async (taskId: string) => {
+  const handleUpdateQuantity = async (taskId: string, quantity: number) => {
     const task = tasks.find((t: Task) => t.id === taskId);
-    if (!task || updatedQty > task.targetQty) return;
+    if (!task || quantity > task.targetQty) return;
 
     try {
       await updateTaskMutation.mutateAsync({
         taskId,
-        completedQty: updatedQty,
+        completedQty: quantity,
       });
       
       setEditingTask(null);
       setUpdatedQty(0);
+      setEditQuantity(0);
       refetch();
     } catch (error) {
       console.error('Task update error:', error);
@@ -87,10 +89,23 @@ export const EmployeeTasksPage = () => {
   };
 
   const handleResubmitTask = (taskId: string, newQuantity: number, notes: string) => {
-    handleUpdateQuantity(taskId);
+    handleUpdateQuantity(taskId, newQuantity);
     setSelectedTask(null);
     setEditQuantity(0);
     setSubmissionNotes('');
+  };
+
+  const handleDeleteTask = async (taskId: string) => {
+    try {
+      await deleteTaskMutation.mutateAsync(taskId);
+      toast({ 
+        title: 'Task Deleted',
+        description: 'Task has been deleted successfully.'
+      });
+      refetch();
+    } catch (error) {
+      console.error('Error deleting task:', error);
+    }
   };
 
   const getStatusBadge = (status: string) => {
@@ -273,10 +288,7 @@ export const EmployeeTasksPage = () => {
 
                       <div className="flex gap-2">
                         <Button
-                          onClick={() => {
-                            setUpdatedQty(editQuantity);
-                            handleUpdateQuantity(selectedTask.id);
-                          }}
+                          onClick={() => handleUpdateQuantity(selectedTask.id, editQuantity)}
                           className="flex-1"
                           disabled={updateTaskMutation.isPending}
                         >
@@ -307,6 +319,18 @@ export const EmployeeTasksPage = () => {
                 >
                   <CheckCircle className="h-4 w-4 mr-1" />
                   Submit
+                </Button>
+              )}
+
+              {/* Delete button - only for supervisors and factory admins */}
+              {(user?.role === 'supervisor' || user?.role === 'factory_admin') && task.status === 'active' && (
+                <Button
+                  onClick={() => handleDeleteTask(task.id)}
+                  size="sm"
+                  variant="destructive"
+                >
+                  <XCircle className="h-4 w-4 mr-1" />
+                  Delete
                 </Button>
               )}
             </>

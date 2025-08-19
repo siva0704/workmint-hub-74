@@ -29,4 +29,14 @@ const productSchema = new Schema<IProduct>({
 productSchema.index({ tenantId: 1, isActive: 1 });
 productSchema.index({ tenantId: 1, name: 1 });
 
+// Convert ObjectId to string in JSON output
+productSchema.methods.toJSON = function() {
+  const productObject = this.toObject();
+  productObject._id = productObject._id.toString();
+  if (productObject.tenantId) {
+    productObject.tenantId = productObject.tenantId.toString();
+  }
+  return productObject;
+};
+
 export const Product = mongoose.model<IProduct>('Product', productSchema);

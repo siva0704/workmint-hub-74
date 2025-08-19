@@ -13,6 +13,7 @@ import { useTasks, useUpdateTaskProgress } from '@/hooks/useApi';
 import { useAuthStore } from '@/stores/auth';
 import { useNavigate } from 'react-router-dom';
 import { useEffect } from 'react';
+import { formatDeadline, isOverdue } from '@/utils/timeUtils';
 
 export const EmployeeDashboard = () => {
   const [activeTab, setActiveTab] = useState('active');
@@ -153,16 +154,14 @@ export const EmployeeDashboard = () => {
         </div>
 
         <div className="text-sm text-muted-foreground">
-          Due: {new Date(task.deadline).toLocaleDateString()}
+                          Due: {formatDeadline(task.deadline)}
         </div>
       </CardContent>
     </Card>
   );
 
   return (
-    <MobileLayout>
-      
-      <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6">
         <div>
           <h1 className="text-hero">Welcome, {user?.name}</h1>
           <p className="text-muted-foreground mt-1">Track and update your work progress</p>
@@ -275,6 +274,5 @@ export const EmployeeDashboard = () => {
           </CardContent>
         </Card>
       </div>
-    </MobileLayout>
   );
 };

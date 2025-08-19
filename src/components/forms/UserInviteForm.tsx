@@ -16,7 +16,7 @@ import { useAuthStore } from '@/stores/auth';
 const userInviteSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   mobile: z.string().min(10, 'Valid mobile number is required'),
-  email: z.string().email('Valid email is required').optional(),
+  email: z.union([z.string().email('Valid email is required'), z.literal('')]).optional(),
   role: z.enum(['factory_admin', 'supervisor', 'employee'] as const),
   password: z.string().min(8, 'Password must be at least 8 characters'),
   confirmPassword: z.string(),

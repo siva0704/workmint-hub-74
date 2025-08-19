@@ -8,6 +8,7 @@ export const handleValidationErrors = (
 ): void => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
+
     res.status(400).json({
       success: false,
       message: 'Validation failed',
@@ -20,17 +21,32 @@ export const handleValidationErrors = (
 
 // Auth validation
 export const validateLogin = [
-  body('email').isEmail().normalizeEmail(),
+  body('email').optional().isEmail().normalizeEmail(),
+  body('autoId').optional().isString().trim(),
   body('password').isLength({ min: 8 }),
+  body().custom((value, { req }) => {
+    if (!value.email && !value.autoId) {
+      throw new Error('Either email or autoId is required');
+    }
+    return true;
+  }),
   handleValidationErrors,
 ];
 
 export const validateSignup = [
   body('factoryName').trim().isLength({ min: 2 }),
-  body('address').trim().isLength({ min: 10 }),
+  body('address').trim().isLength({ min: 5 }),
   body('workersCount').isInt({ min: 1 }),
   body('ownerEmail').isEmail().normalizeEmail(),
-  body('phone').isMobilePhone('any'),
+  body('phone').trim().isLength({ min: 10 }).custom((value) => {
+    // More flexible phone validation for international formats
+    const cleanPhone = value.replace(/[\s\-\(\)]/g, '');
+    const phoneRegex = /^[\+]?[0-9]{10,15}$/;
+    if (!phoneRegex.test(cleanPhone)) {
+      throw new Error('Please enter a valid phone number (10-15 digits)');
+    }
+    return true;
+  }),
   body('loginEmail').isEmail().normalizeEmail(),
   body('password').isLength({ min: 8 }),
   body('confirmPassword').custom((value, { req }) => {

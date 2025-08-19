@@ -113,9 +113,7 @@ export const ProductsPage = () => {
   );
 
   return (
-    <MobileLayout>
-      
-      <div className="p-4 space-y-6">
+    <div className="p-4 space-y-6">
         <div className="flex justify-between items-center">
           <div>
             <h1 className="text-hero">Products</h1>
@@ -199,6 +197,5 @@ export const ProductsPage = () => {
           )}
         </div>
       </div>
-    </MobileLayout>
   );
 };

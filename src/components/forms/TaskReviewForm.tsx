@@ -50,8 +50,8 @@ export const TaskReviewForm = ({
   const handleSubmit = async (data: TaskReviewFormData) => {
     setIsLoading(true);
     try {
-      // TODO: Replace with actual API call
-      console.log('Reviewing task:', { ...data, taskId });
+      
+  
       
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1000));

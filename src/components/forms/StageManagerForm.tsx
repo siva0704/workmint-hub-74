@@ -14,8 +14,8 @@ import { useToast } from '@/hooks/use-toast';
 import { ProcessStage } from '@/types';
 
 const stageSchema = z.object({
-  name: z.string().min(1, 'Stage name is required'),
-  description: z.string().min(1, 'Description is required'),
+  name: z.string().min(2, 'Stage name must be at least 2 characters'),
+  description: z.string().min(5, 'Description must be at least 5 characters'),
 });
 
 type StageFormData = z.infer<typeof stageSchema>;

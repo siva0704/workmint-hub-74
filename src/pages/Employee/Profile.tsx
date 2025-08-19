@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { User, Phone, Mail, Key, Trophy, Clock, Target, Edit2, Save } from 'lucide-react';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from '@/hooks/use-toast';
+import { useUpdateUser, useChangePassword } from '@/hooks/useApi';
 
 interface EmployeeStats {
   tasksCompleted: number;
@@ -33,7 +34,7 @@ const mockAchievements = [
 ];
 
 export const EmployeeProfilePage = () => {
-  const { user } = useAuthStore();
+  const { user, updateUser } = useAuthStore();
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState({
     name: user?.name || '',
@@ -44,14 +45,34 @@ export const EmployeeProfilePage = () => {
     confirmPassword: ''
   });
   const { toast } = useToast();
+  const updateUserMutation = useUpdateUser();
+  const changePasswordMutation = useChangePassword();
 
-  const handleSave = () => {
-    // TODO: API call to update profile
-    toast({ title: 'Profile updated successfully' });
-    setIsEditing(false);
+  const handleSave = async () => {
+    try {
+      await updateUserMutation.mutateAsync({
+        userId: user?.id || user?._id || '',
+        userData: {
+          name: formData.name,
+          email: formData.email,
+          mobile: formData.mobile,
+        }
+      });
+      
+      // Update local user state
+      updateUser({
+        name: formData.name,
+        email: formData.email,
+        mobile: formData.mobile,
+      });
+      
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Profile update error:', error);
+    }
   };
 
-  const handlePasswordChange = () => {
+  const handlePasswordChange = async () => {
     if (formData.newPassword !== formData.confirmPassword) {
       toast({ 
         title: 'Password Mismatch', 
@@ -61,14 +82,33 @@ export const EmployeeProfilePage = () => {
       return;
     }
 
-    // TODO: API call to change password
-    toast({ title: 'Password changed successfully' });
-    setFormData(prev => ({
-      ...prev,
-      currentPassword: '',
-      newPassword: '',
-      confirmPassword: ''
-    }));
+    if (formData.newPassword.length < 8) {
+      toast({ 
+        title: 'Password Too Short', 
+        description: 'New password must be at least 8 characters long',
+        variant: 'destructive' 
+      });
+      return;
+    }
+
+    try {
+      await changePasswordMutation.mutateAsync({
+        userId: user?.id || user?._id || '',
+        passwordData: {
+          currentPassword: formData.currentPassword,
+          newPassword: formData.newPassword,
+        }
+      });
+      
+      setFormData(prev => ({
+        ...prev,
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      }));
+    } catch (error) {
+      console.error('Password change error:', error);
+    }
   };
 
   const getInitials = (name: string) => {

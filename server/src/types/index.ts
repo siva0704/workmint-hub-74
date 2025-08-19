@@ -14,6 +14,7 @@ export interface IUser extends Document {
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;
+  comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
 export interface ITenant extends Document {
@@ -24,6 +25,8 @@ export interface ITenant extends Document {
   phone: string;
   status: 'pending' | 'active' | 'rejected' | 'frozen';
   rejectionReason?: string;
+  approvedBy?: Types.ObjectId;
+  rejectedBy?: Types.ObjectId;
   createdAt: Date;
   approvedAt?: Date;
   rejectedAt?: Date;
@@ -35,6 +38,7 @@ export interface IProduct extends Document {
   name: string;
   description: string;
   isActive: boolean;
+  createdBy?: Types.ObjectId;
   createdAt: Date;
   updatedAt: Date;
 }

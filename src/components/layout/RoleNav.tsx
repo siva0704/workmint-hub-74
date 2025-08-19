@@ -1,32 +1,15 @@
 
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import { Home, Package, Users, Settings, UserCheck, ClipboardList, User } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { useAuthStore } from '@/stores/auth';
 import { cn } from '@/lib/utils';
 
-// Ensure only one bottom nav renders at a time
-let roleNavMounted = false;
-
 export const RoleNav = () => {
   const { user } = useAuthStore();
   const location = useLocation();
 
-  const [shouldRender, setShouldRender] = useState(false);
-
-  useEffect(() => {
-    if (!roleNavMounted) {
-      roleNavMounted = true;
-      setShouldRender(true);
-    } else {
-      setShouldRender(false);
-    }
-    return () => {
-      roleNavMounted = false;
-    };
-  }, []);
-
-  if (!user || !shouldRender) return null;
+  if (!user) return null;
 
   const getNavItems = () => {
     switch (user.role) {

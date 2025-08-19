@@ -4,19 +4,33 @@ import { User } from '../models/User';
 import { Tenant } from '../models/Tenant';
 import { RefreshToken } from '../models/RefreshToken';
 import { config } from '../config/environment';
-import { AuthRequest } from '../types';
+import { AuthRequest, IUser } from '../types';
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
-    const { email, password } = req.body;
+    const { email, autoId, password } = req.body;
 
-    // Find user and populate tenant
-    const user = await User.findOne({ email, isActive: true }).populate('tenantId');
+    let user;
     
-    if (!user || !(await (user as any).comparePassword(password))) {
+    // Support both email and autoId login
+    if (email) {
+      // Factory admin login with email
+      user = await User.findOne({ email: email.toLowerCase(), isActive: true }).populate('tenantId');
+    } else if (autoId) {
+      // Employee/Supervisor login with autoId
+      user = await User.findOne({ autoId, isActive: true }).populate('tenantId');
+    } else {
+      res.status(400).json({
+        success: false,
+        message: 'Email or Auto ID is required',
+      });
+      return;
+    }
+    
+    if (!user || !(await (user as IUser).comparePassword(password))) {
       res.status(401).json({
         success: false,
-        message: 'Invalid email or password',
+        message: email ? 'Invalid email or password' : 'Invalid Auto ID or password',
       });
       return;
     }
@@ -87,7 +101,7 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     }
 
     // Verify refresh token
-    const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret) as any;
+    const decoded = jwt.verify(refreshToken, config.jwt.refreshSecret) as { userId: string };
     
     // Check if refresh token exists in database
     const storedToken = await RefreshToken.findOne({
@@ -158,8 +172,20 @@ export const logout = async (req: AuthRequest, res: Response): Promise<void> => 
   }
 };
 
-export const signup = async (req: Request, res: Response): Promise<void> => {
+interface SignupRequest {
+  factoryName: string;
+  address: string;
+  workersCount: number;
+  ownerEmail: string;
+  phone: string;
+  loginEmail: string;
+  password: string;
+}
+
+export const signup = async (req: Request<object, object, SignupRequest>, res: Response): Promise<void> => {
   try {
+
+
     const {
       factoryName,
       address,
@@ -170,8 +196,17 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
       password,
     } = req.body;
 
+    // Validate required fields
+    if (!factoryName || !address || !workersCount || !ownerEmail || !phone || !loginEmail || !password) {
+      res.status(400).json({
+        success: false,
+        message: 'All fields are required',
+      });
+      return;
+    }
+
     // Check if email already exists
-    const existingUser = await User.findOne({ email: loginEmail });
+    const existingUser = await User.findOne({ email: loginEmail.toLowerCase() });
     if (existingUser) {
       res.status(400).json({
         success: false,
@@ -190,6 +225,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+
     // Create tenant
     const tenant = await Tenant.create({
       factoryName,
@@ -200,20 +236,28 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
       status: 'pending',
     });
 
-    // Generate auto ID for factory admin
-    const autoId = await (User as any).generateAutoId('factory_admin', (tenant._id as any).toString());
+
+
+
+    // Generate unique auto ID for factory admin
+    const timestamp = Date.now().toString().slice(-6);
+    const autoId = `ADM${timestamp}`;
+
+
 
     // Create factory admin user
     const user = await User.create({
       autoId,
       name: `${factoryName} Admin`,
-      email: loginEmail,
+      email: loginEmail.toLowerCase(),
       mobile: phone,
       password,
       role: 'factory_admin',
       tenantId: tenant._id,
-      isActive: false, // Will be activated when tenant is approved
+      isActive: true,
     });
+
+
 
     res.status(201).json({
       success: true,
@@ -228,6 +272,7 @@ export const signup = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({
       success: false,
       message: 'Internal server error',
+      error: process.env.NODE_ENV === 'development' ? (error as Error).message : undefined,
     });
   }
 };
