@@ -1,0 +1,47 @@
+{
+  "name": "WorkMint - Factory Management System",
+  "short_name": "WorkMint",
+  "description": "Comprehensive multi-tenant factory management system for task assignment, product management, and team collaboration.",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "theme_color": "#059669",
+  "background_color": "#ffffff",
+  "scope": "/",
+  "icons": [
+    {
+      "src": "/favicon.ico",
+      "sizes": "48x48 32x32 16x16",
+      "type": "image/x-icon"
+    },
+    {
+      "src": "/placeholder.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/placeholder.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "utilities"],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "description": "View your factory dashboard",
+      "url": "/dashboard",
+      "icons": [{ "src": "/placeholder.svg", "sizes": "96x96" }]
+    },
+    {
+      "name": "Tasks",
+      "short_name": "Tasks",
+      "description": "Manage your tasks",
+      "url": "/tasks",
+      "icons": [{ "src": "/placeholder.svg", "sizes": "96x96" }]
+    }
+  ]
+}

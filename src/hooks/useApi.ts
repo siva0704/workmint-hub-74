@@ -11,6 +11,7 @@ export const QUERY_KEYS = {
   TENANTS: 'tenants',
   NOTIFICATIONS: 'notifications',
   REPORTS: 'reports',
+  SYSTEM_STATS: 'system-stats',
 } as const;
 
 // Authentication Hooks
@@ -67,9 +68,13 @@ export const useUsers = (page: number = 1, limit: number = 10) => {
 };
 
 export const useUser = (userId: string) => {
+  console.log('useUser hook called with userId:', userId);
   return useQuery({
     queryKey: [QUERY_KEYS.USERS, userId],
-    queryFn: () => api.getUser(userId),
+    queryFn: () => {
+      console.log('useUser - calling api.getUser with userId:', userId);
+      return api.getUser(userId);
+    },
     enabled: !!userId,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
@@ -97,16 +102,41 @@ export const useUpdateUser = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: ({ userId, userData }: { userId: string; userData: any }) =>
-      api.updateUser(userId, userData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.USERS] });
-      toast({
-        title: 'User Updated',
-        description: 'User information has been updated successfully.',
-      });
+    mutationFn: ({ userId, userData }: { userId: string; userData: any }) => {
+      console.log('useUpdateUser - mutationFn called with:', { userId, userData });
+      return api.updateUser(userId, userData);
     },
-    onError: (error) => handleApiError(error, toast),
+    onSuccess: (data) => {
+      console.log('useUpdateUser - onSuccess called with:', data);
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.USERS] });
+      // Don't show toast here since it's handled in the component
+      return data;
+    },
+    onError: (error) => {
+      console.log('useUpdateUser - onError called with:', error);
+      handleApiError(error, toast);
+    },
+  });
+};
+
+export const useUpdateSuperAdminProfile = () => {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ userId, userData }: { userId: string; userData: any }) => {
+      console.log('useUpdateSuperAdminProfile - mutationFn called with:', { userId, userData });
+      return api.updateSuperAdminProfile(userId, userData);
+    },
+    onSuccess: (data) => {
+      console.log('useUpdateSuperAdminProfile - onSuccess called with:', data);
+      queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.USERS] });
+      return data;
+    },
+    onError: (error) => {
+      console.log('useUpdateSuperAdminProfile - onError called with:', error);
+      handleApiError(error, toast);
+    },
   });
 };
 
@@ -340,6 +370,8 @@ export const useTenants = (page: number = 1, limit: number = 10) => {
 };
 
 export const useTenant = (tenantId?: string) => {
+  console.log('useTenant called with tenantId:', tenantId);
+  console.log('useTenant tenantId type:', typeof tenantId);
   return useQuery({
     queryKey: [QUERY_KEYS.TENANTS, tenantId],
     queryFn: () => api.getTenant(tenantId!),
@@ -355,12 +387,12 @@ export const useUpdateTenant = () => {
   return useMutation({
     mutationFn: ({ tenantId, tenantData }: { tenantId: string; tenantData: any }) =>
       api.updateTenant(tenantId, tenantData),
-    onSuccess: () => {
+    onSuccess: (data) => {
+      // Invalidate and refetch tenant queries to ensure all components get updated data
       queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.TENANTS] });
-      toast({
-        title: 'Settings Updated',
-        description: 'Factory settings have been updated successfully.',
-      });
+      queryClient.refetchQueries({ queryKey: [QUERY_KEYS.TENANTS] });
+      // The toast is now handled in the component to avoid duplicate messages
+      return data;
     },
     onError: (error) => handleApiError(error, toast),
   });
@@ -416,6 +448,16 @@ export const useFileUpload = () => {
       });
     },
     onError: (error) => handleApiError(error, toast),
+  });
+};
+
+// System Stats Hook (Super Admin)
+export const useSystemStats = () => {
+  return useQuery({
+    queryKey: [QUERY_KEYS.SYSTEM_STATS],
+    queryFn: () => api.getSystemStats(),
+    staleTime: 30 * 1000, // 30 seconds
+    refetchInterval: 30 * 1000, // Refresh every 30 seconds
   });
 };
 

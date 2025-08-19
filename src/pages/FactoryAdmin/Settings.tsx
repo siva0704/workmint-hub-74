@@ -6,10 +6,35 @@ import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { Palette, Calendar, Bell, Upload, Save, Loader2 } from 'lucide-react';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
+import { User, Palette, Calendar, Bell, Upload, Save, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuthStore } from '@/stores/auth';
-import { useTenant, useUpdateTenant } from '@/hooks/useApi';
+import { useTenant, useUpdateTenant, useUpdateUser, useChangePassword } from '@/hooks/useApi';
+
+interface AdminProfile {
+  name: string;
+  email: string;
+  mobile: string;
+  autoId: string;
+}
+
+interface PasswordChange {
+  currentPassword: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+interface TenantObject {
+  _id?: string;
+  id?: string;
+}
+
+interface UserObject {
+  _id?: string;
+  id?: string;
+}
 
 interface FactorySettings {
   branding: {
@@ -70,52 +95,267 @@ const weekDays = [
 export const FactorySettingsPage = () => {
   const [settings, setSettings] = useState<FactorySettings>(initialSettings);
   const [newHoliday, setNewHoliday] = useState('');
+  const [adminProfile, setAdminProfile] = useState<AdminProfile>({
+    name: '',
+    email: '',
+    mobile: '',
+    autoId: '',
+  });
+  const [passwordData, setPasswordData] = useState<PasswordChange>({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [showPassword, setShowPassword] = useState({
+    current: false,
+    new: false,
+    confirm: false,
+  });
   const { toast } = useToast();
-  const { user } = useAuthStore();
+  const { user, tenant: authTenant } = useAuthStore();
   const updateTenant = useAuthStore((s) => s.updateTenant);
+  const updateUser = useAuthStore((s) => s.updateUser);
   
   // Fetch real tenant data
-  const { data: tenant, isLoading } = useTenant(user?.tenantId?.toString() || undefined);
-  const updateTenantMutation = useUpdateTenant();
+  console.log('Settings page - user:', user);
+  console.log('Settings page - user?.tenantId:', user?.tenantId);
+  console.log('Settings page - user?.tenantId type:', typeof user?.tenantId);
+  console.log('Settings page - user?.tenantId stringified:', JSON.stringify(user?.tenantId));
+  
+  // Extract tenant ID properly - handle both string and object cases
+  let tenantId: string | undefined;
+  
+  if (typeof user?.tenantId === 'string') {
+    tenantId = user.tenantId;
+    console.log('Settings page - tenantId is string:', tenantId);
+  } else if (user?.tenantId && typeof user.tenantId === 'object') {
+    // Handle both _id and id properties
+    const tenantObj = user.tenantId as TenantObject;
+    tenantId = tenantObj._id || tenantObj.id;
+    console.log('Settings page - tenantId extracted from object:', tenantId);
+    console.log('Settings page - tenantObj:', tenantObj);
+  } else {
+    console.log('Settings page - tenantId is undefined or invalid');
+  }
 
-  // Update settings when tenant data loads
+  // Additional debugging for tenant ID extraction
+  console.log('Settings page - user?.tenantId parsed:', JSON.parse(JSON.stringify(user?.tenantId)));
+  if (user?.tenantId && typeof user.tenantId === 'object') {
+    console.log('Settings page - user.tenantId keys:', Object.keys(user.tenantId));
+    console.log('Settings page - user.tenantId values:', Object.values(user.tenantId));
+  }
+  
+  console.log('Settings page - extracted tenantId:', tenantId);
+  console.log('Settings page - tenantId type:', typeof tenantId);
+  
+  const { data: tenant, isLoading, error } = useTenant(tenantId && tenantId !== '[object Object]' ? tenantId : undefined);
+  
+  console.log('Settings page - tenant query result:', { tenant, isLoading, error });
+  const updateTenantMutation = useUpdateTenant();
+  const updateUserMutation = useUpdateUser();
+  const changePasswordMutation = useChangePassword();
+
+  // Update settings and admin profile when data loads
   useEffect(() => {
-    if (tenant?.data) {
+    console.log('Settings page - tenant data:', tenant);
+    console.log('Settings page - auth tenant data:', authTenant);
+    console.log('Settings page - user data:', user);
+    
+    // Initialize factory name from tenant data (API or auth store)
+    if (tenant?.data?.factoryName) {
       setSettings(prev => ({
         ...prev,
         branding: {
           ...prev.branding,
-          factoryName: tenant.data.factoryName || 'Demo Factory',
+          factoryName: tenant.data.factoryName,
+        },
+      }));
+    } else if (authTenant?.factoryName) {
+      // Fallback to auth store tenant data
+      setSettings(prev => ({
+        ...prev,
+        branding: {
+          ...prev.branding,
+          factoryName: authTenant.factoryName,
         },
       }));
     }
-  }, [tenant]);
+    
+    // Initialize admin profile from user data
+    if (user) {
+      setAdminProfile({
+        name: user.name || '',
+        email: user.email || '',
+        mobile: user.mobile || '',
+        autoId: user.autoId || '',
+      });
+    }
+  }, [tenant, authTenant, user]);
 
-  const handleSave = async () => {
-    if (!user?.tenantId) {
+  const handleSaveBranding = async () => {
+    const effectiveTenantId = tenantId && tenantId !== '[object Object]' ? tenantId : authTenant?.id;
+    
+    if (!effectiveTenantId) {
       toast({ 
         title: 'Error', 
-        description: 'Unable to save settings',
+        description: 'Unable to save settings - no valid tenant ID',
         variant: 'destructive'
       });
       return;
     }
 
     try {
-      await updateTenantMutation.mutateAsync({
-        tenantId: user.tenantId?.toString() || '',
+      const result = await updateTenantMutation.mutateAsync({
+        tenantId: effectiveTenantId,
         tenantData: {
           factoryName: settings.branding.factoryName,
-          // Add other fields as needed
         }
       });
       
-      // Update local auth store
-      if (settings.branding.factoryName) {
-        updateTenant({ factoryName: settings.branding.factoryName });
+      // Update local auth store with the updated tenant data
+      if (result?.data) {
+        updateTenant(result.data);
+        toast({
+          title: 'Branding Updated',
+          description: 'Factory branding has been updated successfully.',
+        });
       }
     } catch (error) {
-      console.error('Save settings error:', error);
+      console.error('Save branding error:', error);
+      toast({
+        title: 'Update Failed',
+        description: 'Failed to update factory branding. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    const userId = user?.id || (user as UserObject)?._id;
+    
+    if (!userId) {
+      toast({
+        title: 'Error',
+        description: 'Unable to save profile - user ID not found',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    console.log('Settings - handleSaveProfile - userId:', userId);
+    console.log('Settings - handleSaveProfile - adminProfile:', adminProfile);
+    console.log('Settings - handleSaveProfile - user object:', user);
+
+    // Validate required fields
+    if (!adminProfile.name.trim()) {
+      toast({
+        title: 'Validation Error',
+        description: 'Name is required',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (!adminProfile.mobile.trim()) {
+      toast({
+        title: 'Validation Error',
+        description: 'Mobile number is required',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    try {
+      const result = await updateUserMutation.mutateAsync({
+        userId: userId,
+        userData: {
+          name: adminProfile.name,
+          email: adminProfile.email,
+          mobile: adminProfile.mobile,
+        },
+      });
+
+      // Update local auth store
+      if (result?.data) {
+        updateUser(result.data);
+        toast({
+          title: 'Profile Updated',
+          description: 'Your profile has been updated successfully.',
+        });
+      }
+    } catch (error) {
+      console.error('Save profile error:', error);
+      toast({
+        title: 'Update Failed',
+        description: 'Failed to update profile. Please try again.',
+        variant: 'destructive'
+      });
+    }
+  };
+
+  const handleChangePassword = async () => {
+    const userId = user?.id || (user as UserObject)?._id;
+    
+    console.log('Settings - handleChangePassword - user object:', user);
+    console.log('Settings - handleChangePassword - extracted userId:', userId);
+    
+    if (!userId) {
+      toast({
+        title: 'Error',
+        description: 'Unable to change password - user ID not found',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (passwordData.newPassword !== passwordData.confirmPassword) {
+      toast({
+        title: 'Password Mismatch',
+        description: 'New password and confirm password do not match.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (passwordData.newPassword.length < 8) {
+      toast({
+        title: 'Invalid Password',
+        description: 'Password must be at least 8 characters long.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    console.log('Settings - handleChangePassword - userId:', userId);
+    console.log('Settings - handleChangePassword - passwordData:', passwordData);
+
+    try {
+      await changePasswordMutation.mutateAsync({
+        userId: userId,
+        passwordData: {
+          currentPassword: passwordData.currentPassword,
+          newPassword: passwordData.newPassword,
+        },
+      });
+
+      // Reset password form
+      setPasswordData({
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+      });
+
+      toast({
+        title: 'Password Changed',
+        description: 'Your password has been changed successfully.',
+      });
+    } catch (error) {
+      console.error('Change password error:', error);
+      toast({
+        title: 'Password Change Failed',
+        description: 'Failed to change password. Please check your current password.',
+        variant: 'destructive'
+      });
     }
   };
 
@@ -129,7 +369,21 @@ export const FactorySettingsPage = () => {
     }));
   };
 
-  const updateWorkSchedule = (field: string, value: any) => {
+  const updateAdminProfile = (field: keyof AdminProfile, value: string) => {
+    setAdminProfile(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const updatePasswordData = (field: keyof PasswordChange, value: string) => {
+    setPasswordData(prev => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
+
+  const updateWorkSchedule = (field: string, value: string[] | string | number) => {
     setSettings(prev => ({
       ...prev,
       workSchedule: {
@@ -175,7 +429,7 @@ export const FactorySettingsPage = () => {
       <div className="p-4 flex items-center justify-center min-h-[50vh]">
         <div className="flex items-center gap-2">
           <Loader2 className="w-6 h-6 animate-spin" />
-          <span>Loading settings...</span>
+          <span>Loading factory settings...</span>
         </div>
       </div>
     );
@@ -185,21 +439,185 @@ export const FactorySettingsPage = () => {
     <div className="p-4 space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl font-bold">Factory Settings</h1>
-                  <Button 
-          onClick={handleSave}
-          disabled={updateTenantMutation.isPending}
-        >
-          <Save className="h-4 w-4 mr-2" />
-          {updateTenantMutation.isPending ? 'Saving...' : 'Save Changes'}
-        </Button>
         </div>
 
-        <Tabs defaultValue="branding" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="branding">Branding</TabsTrigger>
-            <TabsTrigger value="schedule">Work Schedule</TabsTrigger>
-            <TabsTrigger value="notifications">Notifications</TabsTrigger>
+        <Tabs defaultValue="profile" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-auto">
+            <TabsTrigger value="profile" className="text-xs md:text-sm px-2 py-2">
+              Admin Profile
+            </TabsTrigger>
+            <TabsTrigger value="branding" className="text-xs md:text-sm px-2 py-2">
+              Branding
+            </TabsTrigger>
+            <TabsTrigger value="schedule" className="text-xs md:text-sm px-2 py-2">
+              Work Schedule
+            </TabsTrigger>
+            <TabsTrigger value="notifications" className="text-xs md:text-sm px-2 py-2">
+              Notifications
+            </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="profile" className="space-y-6">
+            <Card className="border-slate-200">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-slate-900">
+                  <User className="h-5 w-5" />
+                  Admin Profile
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center gap-4">
+                  <Avatar className="w-16 h-16">
+                    <AvatarFallback className="text-lg bg-emerald-100 text-emerald-700">
+                      {adminProfile.name.split(' ').map(n => n[0]).join('').toUpperCase() || 'A'}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <h3 className="font-medium text-slate-900">{adminProfile.name || 'Admin'}</h3>
+                    <p className="text-sm text-slate-500">Factory Administrator</p>
+                    <p className="text-xs text-slate-400">ID: {adminProfile.autoId}</p>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="admin-name" className="text-slate-700">Full Name</Label>
+                    <Input
+                      id="admin-name"
+                      value={adminProfile.name}
+                      onChange={(e) => updateAdminProfile('name', e.target.value)}
+                      placeholder="Enter your full name"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="admin-email" className="text-slate-700">Email Address</Label>
+                    <Input
+                      id="admin-email"
+                      type="email"
+                      value={adminProfile.email}
+                      onChange={(e) => updateAdminProfile('email', e.target.value)}
+                      placeholder="Enter your email"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="admin-mobile" className="text-slate-700">Mobile Number</Label>
+                    <Input
+                      id="admin-mobile"
+                      value={adminProfile.mobile}
+                      onChange={(e) => updateAdminProfile('mobile', e.target.value)}
+                      placeholder="Enter your mobile number"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="admin-id" className="text-slate-700">Admin ID</Label>
+                    <Input
+                      id="admin-id"
+                      value={adminProfile.autoId}
+                      disabled
+                      className="bg-gray-50"
+                    />
+                  </div>
+                </div>
+
+                <Button 
+                  onClick={handleSaveProfile}
+                  disabled={updateUserMutation.isPending}
+                  className="w-full md:w-auto"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {updateUserMutation.isPending ? 'Updating...' : 'Update Profile'}
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="border-slate-200">
+              <CardHeader>
+                <CardTitle className="text-slate-900">Change Password</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="current-password" className="text-slate-700">Current Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="current-password"
+                      type={showPassword.current ? "text" : "password"}
+                      value={passwordData.currentPassword}
+                      onChange={(e) => updatePasswordData('currentPassword', e.target.value)}
+                      placeholder="Enter current password"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowPassword(prev => ({ ...prev, current: !prev.current }))}
+                    >
+                      {showPassword.current ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="new-password" className="text-slate-700">New Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="new-password"
+                      type={showPassword.new ? "text" : "password"}
+                      value={passwordData.newPassword}
+                      onChange={(e) => updatePasswordData('newPassword', e.target.value)}
+                      placeholder="Enter new password"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowPassword(prev => ({ ...prev, new: !prev.new }))}
+                    >
+                      {showPassword.new ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="confirm-password" className="text-slate-700">Confirm New Password</Label>
+                  <div className="relative">
+                    <Input
+                      id="confirm-password"
+                      type={showPassword.confirm ? "text" : "password"}
+                      value={passwordData.confirmPassword}
+                      onChange={(e) => updatePasswordData('confirmPassword', e.target.value)}
+                      placeholder="Confirm new password"
+                    />
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="absolute right-0 top-0 h-full px-3 hover:bg-transparent"
+                      onClick={() => setShowPassword(prev => ({ ...prev, confirm: !prev.confirm }))}
+                    >
+                      {showPassword.confirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </Button>
+                  </div>
+                </div>
+
+                <Button 
+                  onClick={handleChangePassword}
+                  disabled={changePasswordMutation.isPending || !passwordData.currentPassword || !passwordData.newPassword || !passwordData.confirmPassword}
+                  variant="outline"
+                  className="w-full md:w-auto"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {changePasswordMutation.isPending ? 'Changing...' : 'Change Password'}
+                </Button>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="branding" className="space-y-6">
             <Card className="border-slate-200">
@@ -288,6 +706,15 @@ export const FactorySettingsPage = () => {
                     />
                   </div>
                 </div>
+
+                <Button 
+                  onClick={handleSaveBranding}
+                  disabled={updateTenantMutation.isPending}
+                  className="w-full md:w-auto"
+                >
+                  <Save className="h-4 w-4 mr-2" />
+                  {updateTenantMutation.isPending ? 'Saving...' : 'Save Branding'}
+                </Button>
               </CardContent>
             </Card>
           </TabsContent>

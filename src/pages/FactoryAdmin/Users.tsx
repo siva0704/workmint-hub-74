@@ -259,7 +259,7 @@ export const UsersPage = () => {
             </div>
           ) : filteredUsers.length > 0 ? (
             filteredUsers.map(user => (
-              <UserCard key={user.id} user={user} />
+              <UserCard key={user.id || user._id} user={user} />
             ))
           ) : (
             <Card>

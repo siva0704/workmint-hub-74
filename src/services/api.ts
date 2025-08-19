@@ -170,6 +170,8 @@ class ApiService {
   }
 
   async getTenant(tenantId: string) {
+    console.log('API getTenant called with tenantId:', tenantId);
+    console.log('API getTenant tenantId type:', typeof tenantId);
     return this.request<any>(`/tenants/${tenantId}`);
   }
 
@@ -213,6 +215,7 @@ class ApiService {
   }
 
   async getUser(userId: string) {
+    console.log('API getUser called with userId:', userId);
     return this.request<any>(`/users/${userId}`);
   }
 
@@ -224,7 +227,16 @@ class ApiService {
   }
 
   async updateUser(userId: string, userData: any) {
+    console.log('API updateUser called with:', { userId, userData });
     return this.request(`/users/${userId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(userData),
+    });
+  }
+
+  async updateSuperAdminProfile(userId: string, userData: any) {
+    console.log('API updateSuperAdminProfile called with:', { userId, userData });
+    return this.request(`/sa/users/${userId}/profile`, {
       method: 'PATCH',
       body: JSON.stringify(userData),
     });
@@ -364,6 +376,22 @@ class ApiService {
   async exportReport(type: string, format: string, filters?: any) {
     const params = new URLSearchParams({ ...filters, format });
     return this.request<{ downloadUrl: string }>(`/reports/${type}/export?${params}`);
+  }
+
+  // System Stats (Super Admin)
+  async getSystemStats() {
+    return this.request<{
+      totalTenants: number;
+      totalUsers: number;
+      systemUptime: string;
+      storageUsed: string;
+      activeConnections: number;
+      pendingTenants: number;
+      activeTenants: number;
+      totalTasks: number;
+      completedTasks: number;
+      systemLoad: number;
+    }>('/sa/system-stats');
   }
 
   // File Upload

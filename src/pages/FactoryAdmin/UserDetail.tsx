@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { ArrowLeft, Edit, Phone, Mail, UserIcon, Calendar, Shield, Loader2 } from 'lucide-react';
-import { UserInviteForm } from '@/components/forms/UserInviteForm';
+import { UserEditForm } from '@/components/forms/UserEditForm';
 import { User, UserRole } from '@/types';
 import { useUser } from '@/hooks/useApi';
 import { useToast } from '@/hooks/use-toast';
@@ -15,7 +15,11 @@ export const UserDetailPage = () => {
   const { toast } = useToast();
   
   // Fetch real user data
+  console.log('UserDetail - userId:', userId);
   const { data: user, isLoading, error } = useUser(userId!);
+  console.log('UserDetail - user data:', user);
+  console.log('UserDetail - isLoading:', isLoading);
+  console.log('UserDetail - error:', error);
 
   if (isLoading) {
     return (
@@ -110,12 +114,12 @@ export const UserDetailPage = () => {
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <UserInviteForm>
+            <UserEditForm user={user} onSuccess={() => window.location.reload()}>
               <Button variant="outline" className="w-full">
                 <Edit className="w-4 h-4 mr-2" />
                 Edit User Details
               </Button>
-            </UserInviteForm>
+            </UserEditForm>
           </CardContent>
         </Card>
 

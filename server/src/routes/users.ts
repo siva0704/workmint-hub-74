@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, Response, NextFunction } from 'express';
 import { 
   getUsers, 
   getUser,
@@ -15,6 +15,7 @@ import {
   validateUpdateUser, 
   validatePagination 
 } from '../middleware/validation';
+import { AuthRequest } from '../types';
 
 const router = Router();
 
@@ -73,7 +74,7 @@ router.post(
 // Change password (users can change their own password)
 router.post(
   '/:userId/change-password',
-  (req, res, next) => {
+  (req: AuthRequest, res: Response, next: NextFunction) => {
     // Users can only change their own password
     if (req.user?.id !== req.params.userId && req.user?.role !== 'super_admin') {
       return res.status(403).json({

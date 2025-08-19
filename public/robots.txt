@@ -1,3 +1,4 @@
+# SEO optimized robots.txt for WorkMint
 User-agent: Googlebot
 Allow: /
 
@@ -12,3 +13,25 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+# Sitemap location
+Sitemap: https://workmint.com/sitemap.xml
+
+# Block access to sensitive areas
+User-agent: *
+Disallow: /api/
+Disallow: /admin/
+Disallow: /_next/
+Disallow: /src/
+
+# Allow access to public assets
+Allow: /favicon.ico
+Allow: /manifest.json
+Allow: /*.css
+Allow: /*.js
+Allow: /*.png
+Allow: /*.jpg
+Allow: /*.svg
+
+# Crawl delay (optional)
+Crawl-delay: 1

@@ -6,6 +6,7 @@ import { Package, Users, Settings, Plus, TrendingUp, Clock, CheckCircle, UserPlu
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { ProductForm } from '@/components/forms/ProductForm';
 import { UserInviteForm } from '@/components/forms/UserInviteForm';
+import { PWAInstallCard } from '@/components/PWAInstallCard';
 import { useProducts, useUsers, useTasks } from '@/hooks/useApi';
 import { useAuthStore } from '@/stores/auth';
 import { useNavigate } from 'react-router-dom';
@@ -184,6 +185,8 @@ export const FactoryAdminDashboard = () => {
                 <p className="text-sm text-slate-600">Configure branding and preferences</p>
               </div>
             </Button>
+            
+            <PWAInstallCard />
           </CardContent>
         </Card>
 

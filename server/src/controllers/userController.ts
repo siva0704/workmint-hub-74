@@ -155,8 +155,12 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
 
     // Remove sensitive fields from updates
     delete updates.password;
-    delete updates.role;
     delete updates.tenantId;
+    
+    // Only allow role updates for factory admins and super admins
+    if (req.user?.role !== 'factory_admin' && req.user?.role !== 'super_admin') {
+      delete updates.role;
+    }
 
     const user = await User.findById(userId);
     if (!user) {
@@ -170,16 +174,29 @@ export const updateUser = async (req: AuthRequest, res: Response): Promise<void>
 
     console.log('Found user:', user.toJSON());
 
-    // Check tenant access
-    if (req.user?.role !== 'super_admin' && user.tenantId?.toString() !== req.user?.tenantId?.toString()) {
-      console.log('Access denied - tenant mismatch');
-      console.log('user.tenantId:', user.tenantId?.toString());
-      console.log('req.user?.tenantId:', req.user?.tenantId?.toString());
-      res.status(403).json({
-        success: false,
-        message: 'Access denied - User not found in your factory',
-      });
-      return;
+    // Check tenant access or self-update for SuperAdmin
+    if (req.user?.role !== 'super_admin') {
+      // For non-SuperAdmin users, check tenant access
+      if (user.tenantId?.toString() !== req.user?.tenantId?.toString()) {
+        console.log('Access denied - tenant mismatch');
+        console.log('user.tenantId:', user.tenantId?.toString());
+        console.log('req.user?.tenantId:', req.user?.tenantId?.toString());
+        res.status(403).json({
+          success: false,
+          message: 'Access denied - User not found in your factory',
+        });
+        return;
+      }
+    } else {
+      // For SuperAdmin, allow updating their own profile
+      if (req.user?.id !== userId) {
+        console.log('SuperAdmin can only update their own profile');
+        res.status(403).json({
+          success: false,
+          message: 'SuperAdmin can only update their own profile',
+        });
+        return;
+      }
     }
 
     Object.assign(user, updates);

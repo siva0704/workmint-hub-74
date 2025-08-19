@@ -2,6 +2,7 @@ import { Router } from 'express';
 import authRoutes from './auth';
 import tenantRoutes from './tenants';
 import userRoutes from './users';
+import saUserRoutes from './saUsers';
 import productRoutes from './products';
 import taskRoutes from './tasks';
 import uploadRoutes from './upload';
@@ -20,6 +21,7 @@ router.get('/health', (req, res) => {
 // API routes
 router.use('/auth', authRoutes);
 router.use('/sa/tenants', tenantRoutes); // Super Admin tenant routes
+router.use('/sa', saUserRoutes); // Super Admin user routes
 router.use('/tenants', tenantRoutes); // Factory Admin tenant routes
 router.use('/users', userRoutes);
 router.use('/products', productRoutes);

@@ -59,7 +59,7 @@ export const Landing = () => {
             <div className="w-10 h-10 bg-slate-600 rounded-xl flex items-center justify-center">
               <Building2 className="h-5 w-5 text-white" />
             </div>
-            <span className="text-xl font-bold text-slate-900">WorkMint Hub</span>
+                            <span className="text-xl font-bold text-slate-900">WorkMint</span>
           </div>
           
           <Button 
@@ -158,7 +158,7 @@ export const Landing = () => {
             Ready to Transform Your Factory?
           </h2>
           <p className="text-lg text-slate-300 mb-8">
-            Join hundreds of factories already using WorkMint Hub to streamline their operations.
+            Join hundreds of factories already using WorkMint to streamline their operations.
           </p>
           
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -187,7 +187,7 @@ export const Landing = () => {
       <footer className="px-4 py-8 bg-slate-50 border-t border-slate-200">
         <div className="max-w-6xl mx-auto text-center">
           <p className="text-slate-600">
-            © 2024 WorkMint Hub. Built for modern manufacturing.
+            © 2024 WorkMint. Built for modern manufacturing.
           </p>
           <div className="mt-4 flex justify-center gap-6">
             <button className="text-slate-500 hover:text-emerald-600 transition-colors">

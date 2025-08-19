@@ -50,7 +50,7 @@ export const TenantHeader = ({ onMenuClick, showMenu = false }: TenantHeaderProp
           </div>
           <div>
             <h1 className="font-semibold text-factory-dark">
-              {tenant?.factoryName || 'WorkMint Hub'}
+              {tenant?.factoryName || 'WorkMint'}
             </h1>
             <p className="text-xs text-factory-medium">
               {user?.role?.replace('_', ' ')?.toUpperCase()}

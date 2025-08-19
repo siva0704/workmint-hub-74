@@ -3,22 +3,63 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>workmint-hub</title>
-    <meta name="description" content="Lovable Generated Project" />
-    <meta name="author" content="Lovable" />
-
-    <meta property="og:title" content="workmint-hub" />
-    <meta property="og:description" content="Lovable Generated Project" />
+    
+    <!-- Primary Meta Tags -->
+    <title>WorkMint - Factory Management System</title>
+    <meta name="title" content="WorkMint - Factory Management System" />
+    <meta name="description" content="Comprehensive multi-tenant factory management system for task assignment, product management, and team collaboration. Streamline your manufacturing operations with WorkMint." />
+    <meta name="keywords" content="factory management, manufacturing, task management, production tracking, industrial software, workflow management, team collaboration" />
+    <meta name="author" content="WorkMint" />
+    <meta name="robots" content="index, follow" />
+    
+    <!-- Theme Color -->
+    <meta name="theme-color" content="#059669" />
+    
+    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="website" />
-    <meta property="og:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
-
+    <meta property="og:url" content="https://workmint.com/" />
+    <meta property="og:title" content="WorkMint - Factory Management System" />
+    <meta property="og:description" content="Comprehensive multi-tenant factory management system for task assignment, product management, and team collaboration." />
+    <meta property="og:site_name" content="WorkMint" />
+    <meta property="og:locale" content="en_US" />
+    
+    <!-- Twitter -->
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@lovable_dev" />
-    <meta name="twitter:image" content="https://lovable.dev/opengraph-image-p98pqg.png" />
+    <meta name="twitter:url" content="https://workmint.com/" />
+    <meta name="twitter:title" content="WorkMint - Factory Management System" />
+    <meta name="twitter:description" content="Comprehensive multi-tenant factory management system for task assignment, product management, and team collaboration." />
+    
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" sizes="180x180" href="/favicon.ico" />
+    
+    <!-- Manifest -->
+    <link rel="manifest" href="/manifest.json" />
+    
+    <!-- Additional SEO -->
+    <link rel="canonical" href="https://workmint.com/" />
+    
+    <!-- Preconnect to external domains -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   </head>
 
   <body>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
+    
+    <!-- Service Worker Registration (for PWA support) -->
+    <script>
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('/sw.js')
+            .then(function(registration) {
+              console.log('SW registered: ', registration);
+            })
+            .catch(function(registrationError) {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+    </script>
   </body>
 </html>

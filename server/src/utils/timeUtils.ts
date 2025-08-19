@@ -1,5 +1,4 @@
 import { format, formatDistanceToNow } from 'date-fns';
-import { utcToZonedTime } from 'date-fns-tz';
 
 // Indian timezone
 export const INDIAN_TIMEZONE = 'Asia/Kolkata';
@@ -9,7 +8,9 @@ export const INDIAN_TIMEZONE = 'Asia/Kolkata';
  */
 export const toIndianTime = (date: Date | string): Date => {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
-  return utcToZonedTime(dateObj, INDIAN_TIMEZONE);
+  // Convert to Indian time by adding 5:30 hours (IST offset)
+  const indianTime = new Date(dateObj.getTime() + (5.5 * 60 * 60 * 1000));
+  return indianTime;
 };
 
 /**
@@ -29,10 +30,34 @@ export const formatRelativeTime = (date: Date | string): string => {
 };
 
 /**
+ * Format date for recent activity display
+ */
+export const formatActivityTime = (date: Date | string): string => {
+  const dateObj = typeof date === 'string' ? new Date(date) : date;
+  const now = new Date();
+  const diffInMs = now.getTime() - dateObj.getTime();
+  const diffInMinutes = Math.floor(diffInMs / (1000 * 60));
+  const diffInHours = Math.floor(diffInMs / (1000 * 60 * 60));
+  const diffInDays = Math.floor(diffInMs / (1000 * 60 * 60 * 24));
+  
+  if (diffInMinutes < 1) {
+    return 'Just now';
+  } else if (diffInMinutes < 60) {
+    return `${diffInMinutes} minutes ago`;
+  } else if (diffInHours < 24) {
+    return `${diffInHours} hours ago`;
+  } else if (diffInDays < 7) {
+    return `${diffInDays} days ago`;
+  } else {
+    return format(dateObj, 'dd/MM/yyyy');
+  }
+};
+
+/**
  * Get current Indian time
  */
 export const getCurrentIndianTime = (): Date => {
-  return utcToZonedTime(new Date(), INDIAN_TIMEZONE);
+  return toIndianTime(new Date());
 };
 
 /**
