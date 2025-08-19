@@ -1,7 +1,6 @@
 
 import { useState } from 'react';
-import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/services/api';
+import { useCreateProduct, useUpdateProduct } from '@/hooks/useApi';
 import type { Product } from '@/types';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -29,9 +28,10 @@ interface ProductFormProps {
 
 export const ProductForm = ({ children, product, onSubmit, onSuccess }: ProductFormProps) => {
   const [open, setOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
+  
+  const createMutation = useCreateProduct();
+  const updateMutation = useUpdateProduct();
 
   const form = useForm<ProductFormData>({
     resolver: zodResolver(productSchema),
@@ -43,36 +43,14 @@ export const ProductForm = ({ children, product, onSubmit, onSuccess }: ProductF
 
   // Keep form values in sync when opening as edit form
   const isEdit = Boolean(product);
-
-  const createMutation = useMutation({
-    mutationFn: async (data: ProductFormData) => api.createProduct(data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-    },
-  });
-
-  const updateMutation = useMutation({
-    mutationFn: async (data: ProductFormData) => api.updateProduct(product!.id, data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['products'] });
-    },
-  });
+  const isLoading = createMutation.isPending || updateMutation.isPending;
 
   const handleSubmit = async (data: ProductFormData) => {
-    setIsLoading(true);
     try {
       if (isEdit) {
-        await updateMutation.mutateAsync(data);
-        toast({
-          title: 'Product updated',
-          description: `${data.name} has been updated successfully.`,
-        });
+        await updateMutation.mutateAsync({ productId: product!.id, productData: data });
       } else {
         await createMutation.mutateAsync(data);
-        toast({
-          title: 'Product created',
-          description: `${data.name} has been added successfully.`,
-        });
       }
 
       onSubmit?.(data);
@@ -81,13 +59,7 @@ export const ProductForm = ({ children, product, onSubmit, onSuccess }: ProductF
       form.reset();
       setOpen(false);
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: `Failed to ${isEdit ? 'update' : 'create'} product. Please try again.`,
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
+      console.error('Product form error:', error);
     }
   };
 

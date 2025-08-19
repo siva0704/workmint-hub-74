@@ -7,28 +7,32 @@ import { Badge } from '@/components/ui/badge';
 import { Plus, Search, Settings, Eye, Edit } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { ProductForm } from '@/components/forms/ProductForm';
-import { StageManagerForm } from '@/components/forms/StageManagerForm';
+import { ProcessStageManager } from '@/components/forms/ProcessStageManager';
 import { Product, ProcessStage } from '@/types';
-import { api } from '@/services/api';
-import { useQuery } from '@tanstack/react-query';
+import { useProducts } from '@/hooks/useApi';
+import { useAuthStore } from '@/stores/auth';
 
 export const ProductsPage = () => {
   const navigate = useNavigate();
-  const [products, setProducts] = useState<Product[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [showInactiveProducts, setShowInactiveProducts] = useState(false);
+  const { user } = useAuthStore();
 
-  const { data, refetch } = useQuery({
-    queryKey: ['products'],
-    queryFn: async () => {
-      const res = await api.getProducts();
-      return res.data as Product[];
-    },
-  });
-
+  // Fetch products from API
+  const { data: productsData, refetch, isLoading } = useProducts(1, 100);
+  
+  // Role-based access control
   useEffect(() => {
-    if (data) setProducts(data);
-  }, [data]);
+    if (user?.role !== 'factory_admin') {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
+
+  if (user?.role !== 'factory_admin') {
+    return null;
+  }
+
+  const products = productsData?.data || [];
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -38,11 +42,8 @@ export const ProductsPage = () => {
   });
 
   const handleStagesUpdate = (productId: string, updatedStages: ProcessStage[]) => {
-    setProducts(prev => prev.map(product => 
-      product.id === productId 
-        ? { ...product, stages: updatedStages }
-        : product
-    ));
+    // Refetch products to get updated data
+    refetch();
   };
 
   const ProductCard = ({ product }: { product: Product }) => (
@@ -63,19 +64,19 @@ export const ProductsPage = () => {
       
       <CardContent className="space-y-4">
         <div>
-          <h4 className="text-sm font-medium mb-2">Process Stages ({product.stages.length})</h4>
+          <h4 className="text-sm font-medium mb-2">Process Stages ({product.stages?.length || 0})</h4>
           <div className="space-y-2">
-            {product.stages.slice(0, 3).map((stage, index) => (
+            {product.stages?.slice(0, 3).map((stage, index) => (
               <div key={`${product.id}-${stage.id}`} className="flex items-center gap-3 text-sm">
                 <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
                   {index + 1}
                 </span>
                 <span>{stage.name}</span>
               </div>
-            ))}
-            {product.stages.length > 3 && (
+            )) || []}
+            {(product.stages?.length || 0) > 3 && (
               <div className="text-sm text-muted-foreground ml-9">
-                +{product.stages.length - 3} more stages
+                +{(product.stages?.length || 0) - 3} more stages
               </div>
             )}
           </div>
@@ -97,15 +98,15 @@ export const ProductsPage = () => {
               Edit
             </Button>
           </ProductForm>
-          <StageManagerForm
+          <ProcessStageManager
             productId={product.id}
-            stages={product.stages}
+            stages={product.stages || []}
             onStagesUpdate={(stages) => handleStagesUpdate(product.id, stages)}
           >
             <Button size="sm" variant="outline">
               <Settings className="w-4 h-4" />
             </Button>
-          </StageManagerForm>
+          </ProcessStageManager>
         </div>
       </CardContent>
     </Card>
@@ -164,7 +165,15 @@ export const ProductsPage = () => {
             </h2>
           </div>
 
-          {filteredProducts.length > 0 ? (
+          {isLoading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-32 bg-muted rounded-lg"></div>
+                </div>
+              ))}
+            </div>
+          ) : filteredProducts.length > 0 ? (
             filteredProducts.map(product => (
               <ProductCard key={product.id} product={product} />
             ))

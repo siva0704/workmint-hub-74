@@ -1,5 +1,6 @@
 
 import { useState } from 'react';
+import { useCreateUser } from '@/hooks/useApi';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,6 +11,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useToast } from '@/hooks/use-toast';
 import { UserRole } from '@/types';
+import { useAuthStore } from '@/stores/auth';
 
 const userInviteSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -27,62 +29,79 @@ type UserInviteFormData = z.infer<typeof userInviteSchema>;
 
 interface UserInviteFormProps {
   children: React.ReactNode;
+  user?: any; // For editing existing user
   onSubmit?: (data: UserInviteFormData) => void;
 }
 
-export const UserInviteForm = ({ children, onSubmit }: UserInviteFormProps) => {
+export const UserInviteForm = ({ children, user: existingUser, onSubmit }: UserInviteFormProps) => {
   const [open, setOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [autoId, setAutoId] = useState('');
   const { toast } = useToast();
+  const { user: currentUser } = useAuthStore();
+  const createUserMutation = useCreateUser();
+  
+  const isEdit = Boolean(existingUser);
+  const isLoading = createUserMutation.isPending;
 
   const form = useForm<UserInviteFormData>({
     resolver: zodResolver(userInviteSchema),
     defaultValues: {
-      name: '',
-      mobile: '',
-      email: '',
+      name: existingUser?.name || '',
+      mobile: existingUser?.mobile || '',
+      email: existingUser?.email || '',
       role: 'employee',
       password: '',
       confirmPassword: '',
     },
   });
 
-  const generateAutoId = () => {
-    const id = `EMP${Date.now().toString().slice(-6)}`;
-    setAutoId(id);
-    return id;
+  // Role-based access control for user creation
+  const canCreateRole = (role: UserRole): boolean => {
+    if (currentUser?.role === 'factory_admin') return true;
+    if (currentUser?.role === 'supervisor') {
+      return role === 'employee'; // Supervisors can only create employees
+    }
+    return false;
   };
 
   const handleSubmit = async (data: UserInviteFormData) => {
-    setIsLoading(true);
     try {
-      const userId = generateAutoId();
-      
-      // TODO: Replace with actual API call
-      console.log('Creating user:', { ...data, autoId: userId });
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!canCreateRole(data.role)) {
+        toast({
+          title: 'Access Denied',
+          description: 'You do not have permission to create this role.',
+          variant: 'destructive',
+        });
+        return;
+      }
+
+      await createUserMutation.mutateAsync({
+        name: data.name,
+        email: data.email,
+        mobile: data.mobile,
+        role: data.role,
+        password: data.password,
+      });
       
       onSubmit?.(data);
-      toast({
-        title: 'User invited',
-        description: `${data.name} has been invited successfully. ID: ${userId}`,
-      });
       
       form.reset();
       setOpen(false);
-      setAutoId('');
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to invite user. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
+      console.error('User invite error:', error);
     }
+  };
+
+  const availableRoles = () => {
+    if (currentUser?.role === 'factory_admin') {
+      return [
+        { value: 'supervisor', label: 'Supervisor' },
+        { value: 'employee', label: 'Employee' },
+      ];
+    }
+    if (currentUser?.role === 'supervisor') {
+      return [{ value: 'employee', label: 'Employee' }];
+    }
+    return [];
   };
 
   return (
@@ -92,10 +111,7 @@ export const UserInviteForm = ({ children, onSubmit }: UserInviteFormProps) => {
       </SheetTrigger>
       <SheetContent side="bottom" className="h-[90vh]">
         <SheetHeader>
-          <SheetTitle>Invite Team Member</SheetTitle>
-          {autoId && (
-            <p className="text-sm text-muted-foreground">Auto-Generated ID: {autoId}</p>
-          )}
+          <SheetTitle>{isEdit ? 'Edit User' : 'Invite Team Member'}</SheetTitle>
         </SheetHeader>
         
         <Form {...form}>
@@ -155,9 +171,11 @@ export const UserInviteForm = ({ children, onSubmit }: UserInviteFormProps) => {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      <SelectItem value="employee">Employee</SelectItem>
-                      <SelectItem value="supervisor">Supervisor</SelectItem>
-                      <SelectItem value="factory_admin">Admin</SelectItem>
+                      {availableRoles().map((role) => (
+                        <SelectItem key={role.value} value={role.value}>
+                          {role.label}
+                        </SelectItem>
+                      ))}
                     </SelectContent>
                   </Select>
                   <FormMessage />
@@ -165,33 +183,37 @@ export const UserInviteForm = ({ children, onSubmit }: UserInviteFormProps) => {
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Password</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="Enter password" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {!isEdit && (
+              <>
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="Enter password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
 
-            <FormField
-              control={form.control}
-              name="confirmPassword"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Confirm Password</FormLabel>
-                  <FormControl>
-                    <Input type="password" placeholder="Confirm password" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                <FormField
+                  control={form.control}
+                  name="confirmPassword"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Confirm Password</FormLabel>
+                      <FormControl>
+                        <Input type="password" placeholder="Confirm password" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </>
+            )}
 
             <div className="flex gap-3 pt-4">
               <Button
@@ -206,9 +228,8 @@ export const UserInviteForm = ({ children, onSubmit }: UserInviteFormProps) => {
                 type="submit"
                 disabled={isLoading}
                 className="flex-1 bg-emerald-600 hover:bg-emerald-700"
-                onClick={() => generateAutoId()}
               >
-                {isLoading ? 'Inviting...' : 'Send Invite'}
+                {isLoading ? (isEdit ? 'Updating...' : 'Creating...') : (isEdit ? 'Update User' : 'Create User')}
               </Button>
             </div>
           </form>

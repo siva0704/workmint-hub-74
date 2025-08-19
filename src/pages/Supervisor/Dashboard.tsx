@@ -9,12 +9,29 @@ import { CheckCircle, Clock, AlertTriangle, Target, TrendingUp, Users, Eye, List
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Task } from '@/types';
 import { useTasks } from '@/hooks/useApi';
+import { useAuthStore } from '@/stores/auth';
+import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
 export const SupervisorDashboard = () => {
   const [activeTab, setActiveTab] = useState('overview');
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
 
   // Fetch tasks from API
-  const { data: tasksData } = useTasks();
+  const { data: tasksData, isLoading } = useTasks();
+  
+  // Role-based access control
+  useEffect(() => {
+    if (user?.role !== 'supervisor') {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
+
+  if (user?.role !== 'supervisor') {
+    return null;
+  }
+
   const tasks = tasksData?.data || [];
 
   const activeTasks = tasks.filter((t: Task) => t.status === 'active');
@@ -42,7 +59,7 @@ export const SupervisorDashboard = () => {
     <MobileLayout>
       <div className="p-4 space-y-6">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Team Overview</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Welcome, {user?.name}</h1>
           <p className="text-slate-600 mt-1">Monitor and manage your team's tasks</p>
         </div>
 
@@ -98,16 +115,30 @@ export const SupervisorDashboard = () => {
         </div>
 
         {/* Quick Actions */}
-        {/* TaskAssignForm is removed as per edit hint */}
-        {/* <TaskAssignForm>
-          <Button className="w-full h-auto p-4 bg-emerald-600 hover:bg-emerald-700 text-white">
+        <div className="grid grid-cols-1 gap-4">
+          <Button 
+            className="w-full h-auto p-4 bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={() => navigate('/assign')}
+          >
             <Plus className="w-5 h-5 mr-3" />
             <div className="text-left">
               <p className="font-medium">Assign New Task</p>
               <p className="text-sm opacity-90">Create and assign tasks to team members</p>
             </div>
           </Button>
-        </TaskAssignForm> */}
+          
+          <Button 
+            variant="outline"
+            className="w-full h-auto p-4"
+            onClick={() => navigate('/review')}
+          >
+            <Eye className="w-5 h-5 mr-3" />
+            <div className="text-left">
+              <p className="font-medium">Review Tasks</p>
+              <p className="text-sm text-muted-foreground">Review completed tasks</p>
+            </div>
+          </Button>
+        </div>
 
         {/* Task Views */}
         <Card className="border-slate-200">
@@ -128,7 +159,17 @@ export const SupervisorDashboard = () => {
               </TabsList>
               
               <TabsContent value="overview" className="space-y-4 mt-4">
-                {tasks.map((task) => (
+                {isLoading ? (
+                  <div className="space-y-4">
+                    {[...Array(3)].map((_, i) => (
+                      <div key={i} className="animate-pulse border rounded-lg p-4">
+                        <div className="h-4 bg-muted rounded w-3/4 mb-2"></div>
+                        <div className="h-3 bg-muted rounded w-1/2"></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : tasks.length > 0 ? (
+                  tasks.map((task: any) => (
                   <div key={task.id} className="border border-slate-200 rounded-lg p-4 space-y-3">
                     <div className="flex justify-between items-start">
                       <div>
@@ -158,7 +199,13 @@ export const SupervisorDashboard = () => {
                       />
                     </div>
                   </div>
-                ))}
+                  ))
+                ) : (
+                  <div className="text-center py-8 text-slate-600">
+                    <List className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                    <p>No tasks assigned yet</p>
+                  </div>
+                )}
               </TabsContent>
               
               <TabsContent value="calendar" className="mt-4">

@@ -57,7 +57,7 @@ export const requestLogger = (req: Request, res: Response, next: NextFunction): 
 };
 
 // CORS configuration
-const allowedOrigins: string[] = (process.env.CORS_ORIGIN || 'http://localhost:5173')
+const allowedOrigins: string[] = (config.server.corsOrigin || 'http://localhost:5173')
   .split(',')
   .map(o => o.trim())
   .filter(Boolean);
@@ -67,6 +67,7 @@ export const corsOptions: CorsOptions = {
     // Allow requests with no origin (e.g., mobile apps, curl, Postman)
     if (!origin) return callback(null, true);
     if (allowedOrigins.includes(origin)) return callback(null, true);
+    console.log(`CORS blocked origin: ${origin}, allowed: ${allowedOrigins.join(', ')}`);
     return callback(new Error('Not allowed by CORS'));
   },
   credentials: true,

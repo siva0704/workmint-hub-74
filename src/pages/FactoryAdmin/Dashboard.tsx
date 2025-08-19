@@ -6,19 +6,45 @@ import { Package, Users, Settings, Plus, TrendingUp, Clock, CheckCircle } from '
 import { MobileLayout } from '@/components/layout/MobileLayout';
 import { ProductForm } from '@/components/forms/ProductForm';
 import { UserInviteForm } from '@/components/forms/UserInviteForm';
+import { useProducts, useUsers, useTasks } from '@/hooks/useApi';
+import { useAuthStore } from '@/stores/auth';
+import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
 export const FactoryAdminDashboard = () => {
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
+  
+  const { data: productsData } = useProducts(1, 100);
+  const { data: usersData } = useUsers(1, 100);
+  const { data: tasksData } = useTasks();
+  
+  // Role-based access control
+  useEffect(() => {
+    if (user?.role !== 'factory_admin') {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
+
+  if (user?.role !== 'factory_admin') {
+    return null;
+  }
+
+  const products = productsData?.data || [];
+  const users = usersData?.data || [];
+  const tasks = tasksData?.data || [];
+
   const stats = {
-    totalProducts: 24,
-    activeUsers: 185,
-    completedTasks: 1250,
-    pendingTasks: 45
+    totalProducts: products.length,
+    activeUsers: users.filter((u: any) => u.isActive).length,
+    completedTasks: tasks.filter((t: any) => t.status === 'completed' || t.status === 'confirmed').length,
+    pendingTasks: tasks.filter((t: any) => t.status === 'active').length
   };
 
   const recentActivity = [
-    { id: 1, action: 'New product added', item: 'Steel Beam A100', time: '2 hours ago' },
-    { id: 2, action: 'User invited', item: 'John Supervisor', time: '4 hours ago' },
-    { id: 3, action: 'Task completed', item: 'Welding Process', time: '6 hours ago' }
+    { id: 1, action: 'New product added', item: products[0]?.name || 'Product', time: '2 hours ago' },
+    { id: 2, action: 'User invited', item: users[users.length - 1]?.name || 'User', time: '4 hours ago' },
+    { id: 3, action: 'Task completed', item: tasks[0]?.productName || 'Task', time: '6 hours ago' }
   ];
 
   return (
@@ -26,7 +52,7 @@ export const FactoryAdminDashboard = () => {
       <div className="p-4 space-y-6">
         {/* Welcome Section */}
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Good morning, Admin</h1>
+          <h1 className="text-2xl font-bold text-slate-900">Good morning, {user?.name}</h1>
           <p className="text-slate-600 mt-1">Here's what's happening at your factory today</p>
         </div>
 
@@ -87,7 +113,7 @@ export const FactoryAdminDashboard = () => {
             <CardTitle className="text-slate-900">Quick Actions</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
-            <ProductForm>
+            <ProductForm onSuccess={() => window.location.reload()}>
               <Button className="w-full h-auto p-4 justify-start bg-emerald-600 hover:bg-emerald-700 text-white">
                 <Plus className="w-5 h-5 mr-3" />
                 <div className="text-left">
@@ -97,7 +123,7 @@ export const FactoryAdminDashboard = () => {
               </Button>
             </ProductForm>
             
-            <UserInviteForm>
+            <UserInviteForm onSubmit={() => window.location.reload()}>
               <Button variant="outline" className="w-full h-auto p-4 justify-start border-slate-200 hover:bg-slate-50">
                 <Users className="w-5 h-5 mr-3" />
                 <div className="text-left">
@@ -107,7 +133,11 @@ export const FactoryAdminDashboard = () => {
               </Button>
             </UserInviteForm>
             
-            <Button variant="outline" className="w-full h-auto p-4 justify-start border-slate-200 hover:bg-slate-50">
+            <Button 
+              variant="outline" 
+              className="w-full h-auto p-4 justify-start border-slate-200 hover:bg-slate-50"
+              onClick={() => navigate('/settings')}
+            >
               <Settings className="w-5 h-5 mr-3" />
               <div className="text-left">
                 <p className="font-medium text-slate-900">Factory Settings</p>

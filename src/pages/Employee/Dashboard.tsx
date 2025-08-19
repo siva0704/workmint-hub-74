@@ -10,16 +10,32 @@ import { MobileLayout } from '@/components/layout/MobileLayout';
 import { Task } from '@/types';
 import { useToast } from '@/hooks/use-toast';
 import { useTasks, useUpdateTaskProgress } from '@/hooks/useApi';
+import { useAuthStore } from '@/stores/auth';
+import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
 export const EmployeeDashboard = () => {
   const [activeTab, setActiveTab] = useState('active');
   const [editingTask, setEditingTask] = useState<string | null>(null);
   const [updatedQty, setUpdatedQty] = useState<number>(0);
   const { toast } = useToast();
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
 
   // Fetch tasks from API
-  const { data: tasksData, refetch } = useTasks();
+  const { data: tasksData, refetch, isLoading } = useTasks();
   const updateTaskMutation = useUpdateTaskProgress();
+  
+  // Role-based access control
+  useEffect(() => {
+    if (user?.role !== 'employee') {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
+
+  if (user?.role !== 'employee') {
+    return null;
+  }
 
   const tasks = tasksData?.data || [];
   const activeTasks = tasks.filter((t: Task) => t.status === 'active');
@@ -30,7 +46,7 @@ export const EmployeeDashboard = () => {
     activeTasks: activeTasks.length,
     dueTasks: dueTasks.length,
     completedTasks: completedTasks.length,
-    weeklyTarget: 125
+    weeklyProgress: activeTasks.reduce((sum, task) => sum + task.progress, 0) / Math.max(activeTasks.length, 1)
   };
 
   const handleUpdateQuantity = async (taskId: string) => {
@@ -46,17 +62,8 @@ export const EmployeeDashboard = () => {
       setEditingTask(null);
       setUpdatedQty(0);
       refetch();
-      
-      toast({
-        title: 'Task Updated',
-        description: 'Task progress has been updated successfully.',
-      });
     } catch (error) {
-      toast({
-        title: 'Update Failed',
-        description: 'Failed to update task progress. Please try again.',
-        variant: 'destructive',
-      });
+      console.error('Task update error:', error);
     }
   };
 
@@ -157,7 +164,7 @@ export const EmployeeDashboard = () => {
       
       <div className="p-4 space-y-6">
         <div>
-          <h1 className="text-hero">My Tasks</h1>
+          <h1 className="text-hero">Welcome, {user?.name}</h1>
           <p className="text-muted-foreground mt-1">Track and update your work progress</p>
         </div>
 
@@ -204,8 +211,8 @@ export const EmployeeDashboard = () => {
               <div className="flex items-center gap-3">
                 <TrendingUp className="w-8 h-8 text-primary" />
                 <div>
-                  <p className="text-2xl font-bold">{stats.weeklyTarget}</p>
-                  <p className="text-sm text-muted-foreground">Week Target</p>
+                  <p className="text-2xl font-bold">{Math.round(stats.weeklyProgress)}%</p>
+                  <p className="text-sm text-muted-foreground">Avg Progress</p>
                 </div>
               </div>
             </CardContent>
@@ -224,7 +231,15 @@ export const EmployeeDashboard = () => {
               
               <div className="p-4">
                 <TabsContent value="active" className="mt-0">
-                  {activeTasks.length > 0 ? (
+                  {isLoading ? (
+                    <div className="space-y-4">
+                      {[...Array(2)].map((_, i) => (
+                        <div key={i} className="animate-pulse">
+                          <div className="h-20 bg-muted rounded-lg"></div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : activeTasks.length > 0 ? (
                     activeTasks.map(task => <TaskCard key={task.id} task={task} />)
                   ) : (
                     <div className="text-center py-8 text-muted-foreground">

@@ -12,17 +12,36 @@ import { CheckCircle, Clock, AlertCircle, Edit, Save, RefreshCw } from 'lucide-r
 import { useToast } from '@/hooks/use-toast';
 import { Task } from '@/types';
 import { useTasks, useUpdateTaskProgress } from '@/hooks/useApi';
+import { useAuthStore } from '@/stores/auth';
+import { useNavigate } from 'react-router-dom';
+import { useEffect } from 'react';
 
 export const EmployeeTasksPage = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'completed'>('all');
   const [editingTask, setEditingTask] = useState<string | null>(null);
   const [updatedQty, setUpdatedQty] = useState<number>(0);
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null);
+  const [submissionNotes, setSubmissionNotes] = useState('');
+  const [editQuantity, setEditQuantity] = useState(0);
   const { toast } = useToast();
+  const { user } = useAuthStore();
+  const navigate = useNavigate();
 
   // Fetch tasks from API
-  const { data: tasksData, refetch } = useTasks();
+  const { data: tasksData, refetch, isLoading } = useTasks();
   const updateTaskMutation = useUpdateTaskProgress();
+  
+  // Role-based access control
+  useEffect(() => {
+    if (user?.role !== 'employee') {
+      navigate('/dashboard');
+    }
+  }, [user, navigate]);
+
+  if (user?.role !== 'employee') {
+    return null;
+  }
 
   const tasks = tasksData?.data || [];
 
@@ -35,7 +54,12 @@ export const EmployeeTasksPage = () => {
 
   const activeTasks = filteredTasks.filter((t: Task) => t.status === 'active');
   const completedTasks = filteredTasks.filter((t: Task) => t.status === 'completed');
-  const overdueTasks = activeTasks.filter((t: Task) => new Date(t.deadline) < new Date());
+  const rejectedTasks = filteredTasks.filter((t: Task) => t.status === 'rejected');
+  const dueThisWeekTasks = activeTasks.filter((t: Task) => {
+    const deadline = new Date(t.deadline);
+    const weekFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    return deadline <= weekFromNow;
+  });
 
   const handleUpdateQuantity = async (taskId: string) => {
     const task = tasks.find((t: Task) => t.id === taskId);
@@ -50,54 +74,20 @@ export const EmployeeTasksPage = () => {
       setEditingTask(null);
       setUpdatedQty(0);
       refetch();
-      
-      toast({
-        title: 'Task Updated',
-        description: 'Task progress has been updated successfully.',
-      });
     } catch (error) {
-      toast({
-        title: 'Update Failed',
-        description: 'Failed to update task progress. Please try again.',
-        variant: 'destructive',
-      });
+      console.error('Task update error:', error);
     }
   };
 
   const handleSubmitTask = (taskId: string, notes: string) => {
-    setTasks(prev => prev.map(t => 
-      t.id === taskId 
-        ? { ...t, status: 'completed' as const }
-        : t
-    ));
-
-    toast({ 
-      title: 'Task Submitted',
-      description: 'Task has been submitted for review'
-    });
-
+    // Task is automatically marked as completed when progress reaches 100%
+    refetch();
     setSelectedTask(null);
     setSubmissionNotes('');
   };
 
   const handleResubmitTask = (taskId: string, newQuantity: number, notes: string) => {
-    setTasks(prev => prev.map(t => 
-      t.id === taskId 
-        ? { 
-            ...t, 
-            status: 'active' as const,
-            completedQuantity: newQuantity,
-            progress: Math.round((newQuantity / t.targetQuantity) * 100),
-            rejectionReason: undefined
-          }
-        : t
-    ));
-
-    toast({ 
-      title: 'Task Resubmitted',
-      description: 'Task has been resubmitted for review'
-    });
-
+    handleUpdateQuantity(taskId);
     setSelectedTask(null);
     setEditQuantity(0);
     setSubmissionNotes('');
@@ -107,8 +97,6 @@ export const EmployeeTasksPage = () => {
     switch (status) {
       case 'active':
         return <Badge variant="secondary">Active</Badge>;
-      case 'due_this_week':
-        return <Badge variant="outline" className="status-pending">Due This Week</Badge>;
       case 'completed':
         return <Badge variant="outline" className="status-completed">Completed</Badge>;
       case 'rejected':
@@ -120,25 +108,13 @@ export const EmployeeTasksPage = () => {
     }
   };
 
-  const getProgressColor = (progress: number, status: string) => {
-    if (status === 'completed') return 'bg-success';
-    if (status === 'overdue' || status === 'rejected') return 'bg-destructive';
-    if (progress >= 75) return 'bg-success';
-    if (progress >= 50) return 'bg-warning';
-    return 'bg-primary';
-  };
-
-  const isOverdue = (deadline: string) => {
-    return new Date(deadline) < new Date();
-  };
-
   const TaskCard = ({ task }: { task: Task }) => (
     <Card key={task.id} className={task.status === 'rejected' ? 'border-destructive' : ''}>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div>
             <CardTitle className="text-lg">{task.productName}</CardTitle>
-            <p className="text-sm text-muted-foreground">{task.stageName}</p>
+            <p className="text-sm text-muted-foreground">{task.processStageeName}</p>
           </div>
           {getStatusBadge(task.status)}
         </div>
@@ -162,7 +138,7 @@ export const EmployeeTasksPage = () => {
           </div>
           <Progress value={task.progress} className="h-2" />
           <div className="flex justify-between text-xs text-muted-foreground">
-            <span>{task.completedQuantity} / {task.targetQuantity} units</span>
+            <span>{task.completedQty} / {task.targetQty} units</span>
             <span>Due: {new Date(task.deadline).toLocaleDateString()}</span>
           </div>
         </div>
@@ -182,7 +158,7 @@ export const EmployeeTasksPage = () => {
                   size="sm"
                   onClick={() => {
                     setSelectedTask(task);
-                    setEditQuantity(task.completedQuantity);
+                    setEditQuantity(task.completedQty);
                   }}
                 >
                   <RefreshCw className="h-4 w-4 mr-1" />
@@ -206,7 +182,7 @@ export const EmployeeTasksPage = () => {
                         id="editQuantity"
                         type="number"
                         min={0}
-                        max={selectedTask.targetQuantity}
+                        max={selectedTask.targetQty}
                         value={editQuantity}
                         onChange={(e) => setEditQuantity(parseInt(e.target.value) || 0)}
                       />
@@ -226,9 +202,10 @@ export const EmployeeTasksPage = () => {
                     <Button
                       onClick={() => handleResubmitTask(selectedTask.id, editQuantity, submissionNotes)}
                       className="w-full bg-success hover:bg-success/90"
+                      disabled={updateTaskMutation.isPending}
                     >
                       <RefreshCw className="h-4 w-4 mr-2" />
-                      Resubmit Task
+                      {updateTaskMutation.isPending ? 'Updating...' : 'Resubmit Task'}
                     </Button>
                   </div>
                 )}
@@ -243,7 +220,7 @@ export const EmployeeTasksPage = () => {
                     size="sm"
                     onClick={() => {
                       setSelectedTask(task);
-                      setEditQuantity(task.completedQuantity);
+                      setEditQuantity(task.completedQty);
                     }}
                   >
                     <Edit className="h-4 w-4 mr-1" />
@@ -264,7 +241,7 @@ export const EmployeeTasksPage = () => {
                         </div>
                         <div>
                           <Label>Stage</Label>
-                          <p>{selectedTask.stageName}</p>
+                          <p>{selectedTask.processStageeName}</p>
                         </div>
                       </div>
 
@@ -274,12 +251,12 @@ export const EmployeeTasksPage = () => {
                           id="editQuantity"
                           type="number"
                           min={0}
-                          max={selectedTask.targetQuantity}
+                          max={selectedTask.targetQty}
                           value={editQuantity}
                           onChange={(e) => setEditQuantity(parseInt(e.target.value) || 0)}
                         />
                         <p className="text-xs text-muted-foreground">
-                          Target: {selectedTask.targetQuantity} units
+                          Target: {selectedTask.targetQty} units
                         </p>
                       </div>
 
@@ -296,14 +273,18 @@ export const EmployeeTasksPage = () => {
 
                       <div className="flex gap-2">
                         <Button
-                          onClick={() => handleUpdateQuantity(selectedTask.id, editQuantity, submissionNotes)}
+                          onClick={() => {
+                            setUpdatedQty(editQuantity);
+                            handleUpdateQuantity(selectedTask.id);
+                          }}
                           className="flex-1"
+                          disabled={updateTaskMutation.isPending}
                         >
                           <Save className="h-4 w-4 mr-1" />
-                          Save Progress
+                          {updateTaskMutation.isPending ? 'Saving...' : 'Save Progress'}
                         </Button>
                         
-                        {editQuantity >= selectedTask.targetQuantity && (
+                        {editQuantity >= selectedTask.targetQty && (
                           <Button
                             onClick={() => handleSubmitTask(selectedTask.id, submissionNotes)}
                             className="flex-1 bg-success hover:bg-success/90"
@@ -353,7 +334,15 @@ export const EmployeeTasksPage = () => {
         </TabsList>
 
         <TabsContent value="active" className="space-y-4">
-          {activeTasks.length === 0 ? (
+          {isLoading ? (
+            <div className="space-y-4">
+              {[...Array(2)].map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-32 bg-muted rounded-lg"></div>
+                </div>
+              ))}
+            </div>
+          ) : activeTasks.length === 0 ? (
             <Card>
               <CardContent className="text-center py-8">
                 <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-4" />

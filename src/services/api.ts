@@ -50,7 +50,8 @@ class ApiService {
     }
 
     // Add tenant scoping for multi-tenant isolation
-    const user = JSON.parse(localStorage.getItem('auth-storage') || '{}')?.state?.user;
+    const authStorage = localStorage.getItem('auth-storage');
+    const user = authStorage ? JSON.parse(authStorage)?.state?.user : null;
     if (user?.tenantId) {
       defaultHeaders['X-Tenant-ID'] = user.tenantId;
     }

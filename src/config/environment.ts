@@ -20,8 +20,8 @@ export const config = {
   isProduction: import.meta.env.PROD,
   
   // API Timeouts
-  apiTimeout: 30000, // 30 seconds
-  uploadTimeout: 120000, // 2 minutes for file uploads
+  apiTimeout: parseInt(import.meta.env.VITE_API_TIMEOUT) || 30000,
+  uploadTimeout: parseInt(import.meta.env.VITE_UPLOAD_TIMEOUT) || 120000,
   
   // Offline Support
   offlineRetryAttempts: 3,

@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
 import morgan from 'morgan';
+import path from 'path';
 import { connectDatabase } from './config/database';
 import { config, validateEnvironment } from './config/environment';
 import routes from './routes';
@@ -24,11 +25,27 @@ app.use(morgan('combined'));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
+// Create uploads directory if it doesn't exist
+import fs from 'fs';
+if (!fs.existsSync(config.upload.uploadDir)) {
+  fs.mkdirSync(config.upload.uploadDir, { recursive: true });
+}
+
 // Serve uploaded files
 app.use('/uploads', express.static(config.upload.uploadDir));
 
 // API routes
 app.use('/api', routes);
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({
+    success: true,
+    message: 'WorkMint Hub Backend is running',
+    timestamp: new Date().toISOString(),
+    environment: config.server.nodeEnv,
+  });
+});
 
 // Error handling
 app.use(notFoundHandler);
@@ -41,11 +58,12 @@ const startServer = async (): Promise<void> => {
     await connectDatabase();
 
     // Start HTTP server
-    app.listen(config.server.port, () => {
+    app.listen(config.server.port, '0.0.0.0', () => {
       console.log(`🚀 WorkMint Hub Backend running on port ${config.server.port}`);
       console.log(`📊 Environment: ${config.server.nodeEnv}`);
       console.log(`🔗 CORS Origin: ${config.server.corsOrigin}`);
       console.log(`📁 Upload Directory: ${config.upload.uploadDir}`);
+      console.log(`🔗 API Base URL: http://localhost:${config.server.port}/api`);
     });
   } catch (error) {
     console.error('❌ Failed to start server:', error);

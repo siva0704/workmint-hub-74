@@ -11,15 +11,29 @@ import { MobileLayout } from '@/components/layout/MobileLayout';
 import { UserInviteForm } from '@/components/forms/UserInviteForm';
 import { User, UserRole } from '@/types';
 import { useUsers } from '@/hooks/useApi';
+import { useAuthStore } from '@/stores/auth';
 
 export const UsersPage = () => {
   const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [roleFilter, setRoleFilter] = useState<UserRole | 'all'>('all');
   const [statusFilter, setStatusFilter] = useState<'all' | 'active' | 'inactive'>('all');
+  const { user: currentUser } = useAuthStore();
 
   // Fetch users from API
-  const { data: usersData, refetch } = useUsers(1, 100);
+  const { data: usersData, refetch, isLoading } = useUsers(1, 100);
+  
+  // Role-based access control
+  useEffect(() => {
+    if (currentUser?.role !== 'factory_admin') {
+      navigate('/dashboard');
+    }
+  }, [currentUser, navigate]);
+
+  if (currentUser?.role !== 'factory_admin') {
+    return null;
+  }
+
   const users = usersData?.data || [];
 
   const filteredUsers = users.filter((user: User) => {
@@ -99,15 +113,10 @@ export const UsersPage = () => {
             <Eye className="w-4 h-4 mr-1" />
             View Profile
           </Button>
-          <UserInviteForm>
+          <UserInviteForm user={user} onSubmit={() => refetch()}>
             <Button size="sm" variant="outline" className="flex-1">
-              <Mail className="w-4 h-4 mr-1" />
-              Send Invite
-            </Button>
-          </UserInviteForm>
-          <UserInviteForm>
-            <Button size="sm" variant="outline">
-              <Settings className="w-4 h-4" />
+              <Settings className="w-4 h-4 mr-1" />
+              Edit
             </Button>
           </UserInviteForm>
         </div>
@@ -224,7 +233,7 @@ export const UsersPage = () => {
         </div>
 
         {/* Add User Button */}
-        <UserInviteForm>
+        <UserInviteForm onSubmit={() => refetch()}>
           <Button className="w-full h-auto p-4">
             <UserPlus className="w-5 h-5 mr-3" />
             <div className="text-left">
@@ -242,7 +251,15 @@ export const UsersPage = () => {
             </h2>
           </div>
 
-          {filteredUsers.length > 0 ? (
+          {isLoading ? (
+            <div className="space-y-4">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-24 bg-muted rounded-lg"></div>
+                </div>
+              ))}
+            </div>
+          ) : filteredUsers.length > 0 ? (
             filteredUsers.map(user => (
               <UserCard key={user.id} user={user} />
             ))

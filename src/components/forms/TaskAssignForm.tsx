@@ -1,5 +1,6 @@
 
 import { useState } from 'react';
+import { useCreateTask, useUsers, useProducts } from '@/hooks/useApi';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -10,13 +11,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { useToast } from '@/hooks/use-toast';
+import { useAuthStore } from '@/stores/auth';
+import { format, addDays } from 'date-fns';
 
 const taskAssignSchema = z.object({
   employeeId: z.string().min(1, 'Employee is required'),
   productId: z.string().min(1, 'Product is required'),
   processStageId: z.string().min(1, 'Process stage is required'),
   targetQty: z.number().min(1, 'Target quantity must be at least 1'),
-  deadlineWeek: z.string().min(1, 'Deadline week is required'),
+  deadline: z.string().min(1, 'Deadline is required'),
   notes: z.string().optional(),
 });
 
@@ -29,8 +32,17 @@ interface TaskAssignFormProps {
 
 export const TaskAssignForm = ({ children, onSubmit }: TaskAssignFormProps) => {
   const [open, setOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<any>(null);
   const { toast } = useToast();
+  const { user } = useAuthStore();
+  
+  const createTaskMutation = useCreateTask();
+  const { data: usersData } = useUsers(1, 100);
+  const { data: productsData } = useProducts(1, 100);
+  
+  const isLoading = createTaskMutation.isPending;
+  const employees = usersData?.data?.filter((u: any) => u.role === 'employee') || [];
+  const products = productsData?.data || [];
 
   const form = useForm<TaskAssignFormData>({
     resolver: zodResolver(taskAssignSchema),
@@ -39,57 +51,45 @@ export const TaskAssignForm = ({ children, onSubmit }: TaskAssignFormProps) => {
       productId: '',
       processStageId: '',
       targetQty: 1,
-      deadlineWeek: '',
+      deadline: '',
       notes: '',
     },
   });
 
+  // Role-based access control
+  const canAssignTasks = user?.role === 'supervisor' || user?.role === 'factory_admin';
+
+  if (!canAssignTasks) {
+    return null; // Don't render if user can't assign tasks
+  }
+
   const handleSubmit = async (data: TaskAssignFormData) => {
-    setIsLoading(true);
     try {
-      // TODO: Replace with actual API call
-      console.log('Assigning task:', data);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const taskData = {
+        ...data,
+        targetQty: Number(data.targetQty),
+        deadline: new Date(data.deadline).toISOString(),
+        deadlineWeek: format(new Date(data.deadline), 'yyyy-\'W\'II'),
+      };
+
+      await createTaskMutation.mutateAsync(taskData);
       
       onSubmit?.(data);
-      toast({
-        title: 'Task assigned',
-        description: `Task has been assigned successfully.`,
-      });
       
       form.reset();
+      setSelectedProduct(null);
       setOpen(false);
     } catch (error) {
-      toast({
-        title: 'Error',
-        description: 'Failed to assign task. Please try again.',
-        variant: 'destructive',
-      });
-    } finally {
-      setIsLoading(false);
+      console.error('Task assignment error:', error);
     }
   };
 
-  // Mock data - replace with actual data from API
-  const employees = [
-    { id: '1', name: 'John Doe' },
-    { id: '2', name: 'Jane Smith' },
-    { id: '3', name: 'Mike Johnson' },
-  ];
-
-  const products = [
-    { id: '1', name: 'Widget Assembly' },
-    { id: '2', name: 'Quality Check' },
-    { id: '3', name: 'Packaging' },
-  ];
-
-  const processStages = [
-    { id: '1', name: 'Assembly' },
-    { id: '2', name: 'Testing' },
-    { id: '3', name: 'Finishing' },
-  ];
+  const handleProductChange = (productId: string) => {
+    const product = products.find((p: any) => p.id === productId);
+    setSelectedProduct(product);
+    form.setValue('productId', productId);
+    form.setValue('processStageId', ''); // Reset stage selection
+  };
 
   return (
     <Sheet open={open} onOpenChange={setOpen}>
@@ -116,9 +116,9 @@ export const TaskAssignForm = ({ children, onSubmit }: TaskAssignFormProps) => {
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {employees.map((employee) => (
+                      {employees.map((employee: any) => (
                         <SelectItem key={employee.id} value={employee.id}>
-                          {employee.name}
+                          {employee.name} ({employee.autoId})
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -134,14 +134,14 @@ export const TaskAssignForm = ({ children, onSubmit }: TaskAssignFormProps) => {
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Product</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
+                  <Select onValueChange={handleProductChange} defaultValue={field.value}>
                     <FormControl>
                       <SelectTrigger>
                         <SelectValue placeholder="Select product" />
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {products.map((product) => (
+                      {products.map((product: any) => (
                         <SelectItem key={product.id} value={product.id}>
                           {product.name}
                         </SelectItem>
@@ -153,30 +153,32 @@ export const TaskAssignForm = ({ children, onSubmit }: TaskAssignFormProps) => {
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="processStageId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Process Stage</FormLabel>
-                  <Select onValueChange={field.onChange} defaultValue={field.value}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select process stage" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {processStages.map((stage) => (
-                        <SelectItem key={stage.id} value={stage.id}>
-                          {stage.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {selectedProduct && (
+              <FormField
+                control={form.control}
+                name="processStageId"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Process Stage</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select process stage" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {selectedProduct.stages?.map((stage: any) => (
+                          <SelectItem key={stage.id} value={stage.id}>
+                            {stage.order}. {stage.name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}
@@ -200,12 +202,16 @@ export const TaskAssignForm = ({ children, onSubmit }: TaskAssignFormProps) => {
 
             <FormField
               control={form.control}
-              name="deadlineWeek"
+              name="deadline"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Deadline Week</FormLabel>
+                  <FormLabel>Deadline</FormLabel>
                   <FormControl>
-                    <Input type="week" {...field} />
+                    <Input 
+                      type="date" 
+                      min={format(new Date(), 'yyyy-MM-dd')}
+                      {...field} 
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

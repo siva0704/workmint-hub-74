@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { useAuthStore } from "@/stores/auth";
 import { TenantHeader } from "@/components/layout/TenantHeader";
 import { RoleNav } from "@/components/layout/RoleNav";
+import { useEffect } from "react";
 
 // Pages
 import { Landing } from "./pages/Landing";
@@ -33,10 +34,42 @@ import { EmployeeDashboard } from "./pages/Employee/Dashboard";
 import { EmployeeTasksPage } from "./pages/Employee/Tasks";
 import { EmployeeProfilePage } from "./pages/Employee/Profile";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      retry: 3,
+      refetchOnWindowFocus: false,
+    },
+    mutations: {
+      retry: 1,
+    },
+  },
+});
 
 const App = () => {
   const { isAuthenticated, user } = useAuthStore();
+
+  // Initialize auth state from localStorage on app start
+  useEffect(() => {
+    const token = localStorage.getItem('auth-token');
+    const authStorage = localStorage.getItem('auth-storage');
+    
+    if (token && authStorage) {
+      try {
+        const { state } = JSON.parse(authStorage);
+        if (state?.user && state?.isAuthenticated) {
+          // Auth state is already restored by Zustand persist
+          console.log('Auth state restored from localStorage');
+        }
+      } catch (error) {
+        console.error('Failed to restore auth state:', error);
+        localStorage.removeItem('auth-token');
+        localStorage.removeItem('refresh-token');
+        localStorage.removeItem('auth-storage');
+      }
+    }
+  }, []);
 
   // Role-based dashboard routing
   const getDashboardComponent = () => {
@@ -56,6 +89,19 @@ const App = () => {
     }
   };
 
+  // Protected Route Component
+  const ProtectedRoute = ({ children, allowedRoles }: { children: React.ReactNode; allowedRoles?: string[] }) => {
+    if (!isAuthenticated) {
+      return <Navigate to="/login" replace />;
+    }
+
+    if (allowedRoles && user && !allowedRoles.includes(user.role)) {
+      return <Navigate to="/dashboard" replace />;
+    }
+
+    return <>{children}</>;
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
@@ -72,58 +118,81 @@ const App = () => {
             <Route path="/pending-approval" element={<PendingApproval />} />
             
             {/* Protected Routes */}
-            {isAuthenticated ? (
-              <>
-                <Route path="/dashboard" element={getDashboardComponent()} />
-                
-                {/* Super Admin Routes */}
-                {user?.role === 'super_admin' && (
-                  <>
-                    <Route path="/tenants" element={<SuperAdminTenants />} />
-                    <Route path="/super-admin/settings" element={<SuperAdminSettings />} />
-                  </>
-                )}
-                
-                {/* Factory Admin Routes */}
-                {user?.role === 'factory_admin' && (
-                  <>
-                    <Route path="/products" element={<ProductsPage />} />
-                    <Route path="/products/:productId" element={<ProductDetailPage />} />
-                    <Route path="/users" element={<UsersPage />} />
-                    <Route path="/users/:userId" element={<UserDetailPage />} />
-                    <Route path="/settings" element={<FactorySettingsPage />} />
-                  </>
-                )}
-                
-                {/* Supervisor Routes */}
-                {user?.role === 'supervisor' && (
-                  <>
-                    <Route path="/assign" element={<TaskAssignPage />} />
-                    <Route path="/review" element={<TaskReviewPage />} />
-                  </>
-                )}
-                
-                {/* Employee Routes */}
-                {user?.role === 'employee' && (
-                  <>
-                    <Route path="/tasks" element={<EmployeeTasksPage />} />
-                    <Route path="/profile" element={<EmployeeProfilePage />} />
-                  </>
-                )}
-                
-                {/* Redirect unmatched routes to dashboard */}
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
-              </>
-            ) : (
-              <>
-                {/* Redirect protected routes to login */}
-                <Route path="/dashboard" element={<Navigate to="/login" replace />} />
-                <Route path="*" element={<Navigate to="/login" replace />} />
-              </>
-            )}
+            <Route path="/dashboard" element={
+              <ProtectedRoute>
+                {getDashboardComponent()}
+              </ProtectedRoute>
+            } />
+            
+            {/* Super Admin Routes */}
+            <Route path="/tenants" element={
+              <ProtectedRoute allowedRoles={['super_admin']}>
+                <SuperAdminTenants />
+              </ProtectedRoute>
+            } />
+            <Route path="/super-admin/settings" element={
+              <ProtectedRoute allowedRoles={['super_admin']}>
+                <SuperAdminSettings />
+              </ProtectedRoute>
+            } />
+            
+            {/* Factory Admin Routes */}
+            <Route path="/products" element={
+              <ProtectedRoute allowedRoles={['factory_admin']}>
+                <ProductsPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/products/:productId" element={
+              <ProtectedRoute allowedRoles={['factory_admin']}>
+                <ProductDetailPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/users" element={
+              <ProtectedRoute allowedRoles={['factory_admin']}>
+                <UsersPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/users/:userId" element={
+              <ProtectedRoute allowedRoles={['factory_admin']}>
+                <UserDetailPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/settings" element={
+              <ProtectedRoute allowedRoles={['factory_admin']}>
+                <FactorySettingsPage />
+              </ProtectedRoute>
+            } />
+            
+            {/* Supervisor Routes */}
+            <Route path="/assign" element={
+              <ProtectedRoute allowedRoles={['supervisor', 'factory_admin']}>
+                <TaskAssignPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/review" element={
+              <ProtectedRoute allowedRoles={['supervisor', 'factory_admin']}>
+                <TaskReviewPage />
+              </ProtectedRoute>
+            } />
+            
+            {/* Employee Routes */}
+            <Route path="/tasks" element={
+              <ProtectedRoute allowedRoles={['employee']}>
+                <EmployeeTasksPage />
+              </ProtectedRoute>
+            } />
+            <Route path="/profile" element={
+              <ProtectedRoute allowedRoles={['employee']}>
+                <EmployeeProfilePage />
+              </ProtectedRoute>
+            } />
+            
+            {/* Redirect unmatched protected routes to dashboard */}
+            <Route path="*" element={
+              isAuthenticated ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />
+            } />
             
             {/* Fallback route */}
-            <Route path="*" element={<NotFound />} />
           </Routes>
           {isAuthenticated && <RoleNav />}
         </BrowserRouter>
