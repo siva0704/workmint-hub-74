@@ -40,10 +40,10 @@ export const Login = () => {
       authLogin(
         response.data.user, 
         response.data.tenant,
-        {
+        response.data.refreshToken ? {
           token: response.data.token,
           refreshToken: response.data.refreshToken,
-        }
+        } : undefined
       );
       
       // Navigate to role-specific dashboard

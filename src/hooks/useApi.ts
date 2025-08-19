@@ -23,8 +23,10 @@ export const useLogin = () => {
       api.login(email, password),
     onSuccess: (data) => {
       // Store tokens
-      localStorage.setItem('auth-token', data.data.token);
-      localStorage.setItem('refresh-token', data.data.refreshToken);
+      if (data.data.refreshToken) {
+        localStorage.setItem('auth-token', data.data.token);
+        localStorage.setItem('refresh-token', data.data.refreshToken);
+      }
       // Invalidate and refetch user data
       queryClient.invalidateQueries();
       toast({

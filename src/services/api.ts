@@ -145,7 +145,7 @@ class ApiService {
 
   // Authentication Endpoints
   async login(email: string, password: string) {
-    return this.request<{ user: any; tenant: any; token: string }>('/auth/login', {
+    return this.request<{ user: any; tenant: any; token: string; refreshToken?: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });

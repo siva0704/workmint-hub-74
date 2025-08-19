@@ -32,11 +32,13 @@ export const SuperAdminTenants = () => {
   const rejectedTenants = filteredTenants.filter((t: Tenant) => t.status === 'rejected');
   const frozenTenants = filteredTenants.filter((t: Tenant) => t.status === 'frozen');
 
-  const handleApprove = (updatedTenant: Tenant) => {
+  const handleApprove = async (tenantId: string, reason?: string) => {
+    await approveMutation.mutateAsync({ tenantId, reason });
     refetch();
   };
 
-  const handleReject = (updatedTenant: Tenant) => {
+  const handleReject = async (tenantId: string, reason: string) => {
+    await rejectMutation.mutateAsync({ tenantId, reason });
     refetch();
   };
 

@@ -120,7 +120,7 @@ export const SupervisorDashboard = () => {
             className="w-full h-auto p-4 bg-emerald-600 hover:bg-emerald-700 text-white"
             onClick={() => navigate('/assign')}
           >
-            <Plus className="w-5 h-5 mr-3" />
+            <div className="w-5 h-5 mr-3 text-white">+</div>
             <div className="text-left">
               <p className="font-medium">Assign New Task</p>
               <p className="text-sm opacity-90">Create and assign tasks to team members</p>
