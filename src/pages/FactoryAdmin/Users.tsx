@@ -108,7 +108,7 @@ export const UsersPage = () => {
             size="sm" 
             variant="outline" 
             className="flex-1"
-            onClick={() => navigate(`/users/${user.id}`)}
+            onClick={() => navigate(`/users/${user.id || user._id}`)}
           >
             <Eye className="w-4 h-4 mr-1" />
             View Profile

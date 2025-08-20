@@ -16,7 +16,21 @@ export const ProductDetailPage = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  const { data: productData, isLoading, error } = useProduct(productId || '');
+  // Don't fetch if productId is not available
+  if (!productId) {
+    return (
+      <div className="p-4 flex items-center justify-center min-h-[50vh]">
+        <div className="text-center">
+          <p className="text-muted-foreground">Invalid product ID</p>
+          <Button onClick={() => navigate('/products')} className="mt-4">
+            Back to Products
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const { data: productData, isLoading, error } = useProduct(productId);
 
   useEffect(() => {
     if (error) {

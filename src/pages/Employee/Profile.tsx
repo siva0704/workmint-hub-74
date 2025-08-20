@@ -147,7 +147,7 @@ export const EmployeeProfilePage = () => {
                 </Avatar>
                 <div>
                   <CardTitle className="text-xl">{user?.name}</CardTitle>
-                  <p className="text-muted-foreground">Employee ID: {user?.id}</p>
+                  <p className="text-muted-foreground">Employee ID: {user?.id || user?._id}</p>
                   <Badge variant="outline" className="status-active mt-1">Active</Badge>
                 </div>
               </div>

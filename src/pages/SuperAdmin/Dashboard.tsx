@@ -5,15 +5,17 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Clock, Factory, Users, Activity, CheckCircle, XCircle, Building2, TrendingUp } from 'lucide-react';
 import { MobileLayout } from '@/components/layout/MobileLayout';
-import { useTenants, useApproveTenant, useRejectTenant } from '@/hooks/useApi';
+import { useTenants, useApproveTenant, useRejectTenant, useSystemStats } from '@/hooks/useApi';
 import { formatActivityTime } from '@/utils/timeUtils';
 import { useAuthStore } from '@/stores/auth';
 import { useNavigate } from 'react-router-dom';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export const SuperAdminDashboard = () => {
   const { user } = useAuthStore();
   const navigate = useNavigate();
   const { data: tenantsData, refetch, isLoading } = useTenants(1, 100);
+  const { data: systemStatsData, isLoading: statsLoading } = useSystemStats();
   const approveMutation = useApproveTenant();
   const rejectMutation = useRejectTenant();
 
@@ -58,14 +60,17 @@ export const SuperAdminDashboard = () => {
     pendingApprovals: pendingTenants.length,
     activeTenants: activeTenants.length,
     totalTenants: tenants.length,
-    systemHealth: 99.9
+    systemHealth: systemStatsData?.data?.systemUptime || '99.9%'
   };
 
   return (
     <div className="p-4 space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Super Admin Dashboard</h1>
-          <p className="text-slate-600 mt-1">Manage factory registrations and system oversight</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Super Admin Dashboard</h1>
+            <p className="text-slate-600 mt-1">Manage factory registrations and system oversight</p>
+          </div>
+          <ThemeToggle />
         </div>
 
         {/* Stats Overview */}
@@ -75,7 +80,7 @@ export const SuperAdminDashboard = () => {
               <div className="flex items-center gap-3">
                 <Clock className="w-8 h-8 text-slate-600" />
                 <div>
-                  <p className="text-2xl font-bold">{stats.pendingApprovals}</p>
+                  <p className="text-2xl font-bold text-slate-900">{stats.pendingApprovals}</p>
                   <p className="text-sm text-muted-foreground">Pending</p>
                 </div>
               </div>
@@ -87,7 +92,7 @@ export const SuperAdminDashboard = () => {
               <div className="flex items-center gap-3">
                 <CheckCircle className="w-8 h-8 text-emerald-600" />
                 <div>
-                  <p className="text-2xl font-bold">{stats.activeTenants}</p>
+                  <p className="text-2xl font-bold text-slate-900">{stats.activeTenants}</p>
                   <p className="text-sm text-muted-foreground">Active</p>
                 </div>
               </div>
@@ -99,7 +104,7 @@ export const SuperAdminDashboard = () => {
               <div className="flex items-center gap-3">
                 <Factory className="w-8 h-8 text-blue-600" />
                 <div>
-                  <p className="text-2xl font-bold">{stats.totalTenants}</p>
+                  <p className="text-2xl font-bold text-slate-900">{stats.totalTenants}</p>
                   <p className="text-sm text-muted-foreground">Total</p>
                 </div>
               </div>
@@ -111,7 +116,7 @@ export const SuperAdminDashboard = () => {
               <div className="flex items-center gap-3">
                 <Activity className="w-8 h-8 text-emerald-600" />
                 <div>
-                  <p className="text-2xl font-bold">{stats.systemHealth}%</p>
+                  <p className="text-2xl font-bold text-slate-900">{stats.systemHealth}</p>
                   <p className="text-sm text-muted-foreground">Uptime</p>
                 </div>
               </div>
@@ -122,7 +127,7 @@ export const SuperAdminDashboard = () => {
         {/* Pending Approvals */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-slate-900">
               <Clock className="w-5 h-5" />
               Pending Factory Approvals
             </CardTitle>
@@ -139,10 +144,10 @@ export const SuperAdminDashboard = () => {
               </div>
             ) : pendingTenants.length > 0 ? (
               pendingTenants.map((tenant: any) => (
-              <div key={tenant._id || tenant.id} className="border rounded-lg p-4 space-y-3">
+              <div key={tenant._id || tenant.id} className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 space-y-3">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="font-semibold">{tenant.factoryName}</h3>
+                    <h3 className="font-semibold text-slate-900 dark:text-slate-100">{tenant.factoryName}</h3>
                     <p className="text-sm text-muted-foreground">{tenant.address}</p>
                     <p className="text-sm text-muted-foreground">
                       {tenant.workersCount} workers • {tenant.ownerEmail}
@@ -177,9 +182,75 @@ export const SuperAdminDashboard = () => {
               </div>
               ))
             ) : (
+                          <div className="text-center py-8 text-muted-foreground">
+              <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
+              <p className="text-slate-600">No pending approvals</p>
+            </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* System Health Overview */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-slate-900">
+              <Activity className="w-5 h-5" />
+              System Health Overview
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {statsLoading ? (
+              <div className="space-y-4">
+                {[...Array(4)].map((_, i) => (
+                  <div key={i} className="animate-pulse">
+                    <div className="h-4 bg-slate-200 rounded w-3/4 mb-2"></div>
+                    <div className="h-3 bg-slate-200 rounded w-1/2"></div>
+                  </div>
+                ))}
+              </div>
+            ) : systemStatsData?.data ? (
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Total Users</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {systemStatsData.data.totalUsers?.toLocaleString() || '0'}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Total Tasks</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {systemStatsData.data.totalTasks?.toLocaleString() || '0'}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Completed Tasks</p>
+                  <p className="text-2xl font-bold text-emerald-600">
+                    {systemStatsData.data.completedTasks?.toLocaleString() || '0'}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">System Load</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {systemStatsData.data.systemLoad || '0'}%
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Storage Used</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {systemStatsData.data.storageUsed || '0 TB'}
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  <p className="text-sm text-muted-foreground">Active Connections</p>
+                  <p className="text-2xl font-bold text-slate-900">
+                    {systemStatsData.data.activeConnections?.toLocaleString() || '0'}
+                  </p>
+                </div>
+              </div>
+            ) : (
               <div className="text-center py-8 text-muted-foreground">
-                <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No pending approvals</p>
+                <Activity className="w-12 h-12 mx-auto mb-4 opacity-50" />
+                <p>Unable to load system statistics</p>
               </div>
             )}
           </CardContent>
@@ -188,7 +259,7 @@ export const SuperAdminDashboard = () => {
         {/* Recent Activity */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
+            <CardTitle className="flex items-center gap-2 text-slate-900">
               <TrendingUp className="w-5 h-5" />
               Recent Activity
             </CardTitle>

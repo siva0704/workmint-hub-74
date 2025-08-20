@@ -12,6 +12,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useNavigate } from 'react-router-dom';
 import { useEffect, useMemo } from 'react';
 import { formatActivityTime } from '@/utils/timeUtils';
+import { ThemeToggle } from '@/components/ui/theme-toggle';
 
 export const FactoryAdminDashboard = () => {
   const { user } = useAuthStore();
@@ -92,9 +93,12 @@ export const FactoryAdminDashboard = () => {
   return (
     <div className="p-4 space-y-6">
         {/* Welcome Section */}
-        <div>
-          <h1 className="text-2xl font-bold text-slate-900">Good morning, {user?.name}</h1>
-          <p className="text-slate-600 mt-1">Here's what's happening at your factory today</p>
+        <div className="flex justify-between items-start">
+          <div>
+            <h1 className="text-2xl font-bold text-slate-900">Good morning, {user?.name}</h1>
+            <p className="text-slate-600 mt-1">Here's what's happening at your factory today</p>
+          </div>
+          <ThemeToggle />
         </div>
 
         {/* Stats Grid */}

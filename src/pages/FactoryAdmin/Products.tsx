@@ -67,7 +67,7 @@ export const ProductsPage = () => {
           <h4 className="text-sm font-medium mb-2">Process Stages ({product.stages?.length || 0})</h4>
           <div className="space-y-2">
             {product.stages?.slice(0, 3).map((stage, index) => (
-              <div key={`${product.id}-${stage.id}`} className="flex items-center gap-3 text-sm">
+                              <div key={`${product.id || product._id}-${stage.id || stage._id}`} className="flex items-center gap-3 text-sm">
                 <span className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center">
                   {index + 1}
                 </span>
@@ -87,7 +87,7 @@ export const ProductsPage = () => {
             size="sm" 
             variant="outline" 
             className="flex-1"
-            onClick={() => navigate(`/products/${product.id}`)}
+            onClick={() => navigate(`/products/${product.id || product._id}`)}
           >
             <Eye className="w-4 h-4 mr-1" />
             View Details
@@ -98,11 +98,11 @@ export const ProductsPage = () => {
               Edit
             </Button>
           </ProductForm>
-          <ProcessStageManager
-            productId={product.id}
-            stages={product.stages || []}
-            onStagesUpdate={(stages) => handleStagesUpdate(product.id, stages)}
-          >
+                      <ProcessStageManager
+              productId={product.id || product._id}
+              stages={product.stages || []}
+              onStagesUpdate={(stages) => handleStagesUpdate(product.id || product._id, stages)}
+            >
             <Button size="sm" variant="outline">
               <Settings className="w-4 h-4" />
             </Button>
@@ -173,7 +173,7 @@ export const ProductsPage = () => {
             </div>
           ) : filteredProducts.length > 0 ? (
             filteredProducts.map(product => (
-              <ProductCard key={product.id} product={product} />
+              <ProductCard key={product.id || product._id} product={product} />
             ))
           ) : (
             <Card>

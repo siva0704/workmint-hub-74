@@ -16,10 +16,28 @@ export const UserDetailPage = () => {
   
   // Fetch real user data
   console.log('UserDetail - userId:', userId);
-  const { data: user, isLoading, error } = useUser(userId!);
-  console.log('UserDetail - user data:', user);
+  
+  // Don't fetch if userId is not available
+  if (!userId) {
+    return (
+      <div className="p-4 flex items-center justify-center min-h-[50vh]">
+        <div className="text-center">
+          <p className="text-muted-foreground">Invalid user ID</p>
+          <Button onClick={() => navigate('/users')} className="mt-4">
+            Back to Users
+          </Button>
+        </div>
+      </div>
+    );
+  }
+  
+  const { data: userResponse, isLoading, error } = useUser(userId);
+  console.log('UserDetail - user data:', userResponse);
   console.log('UserDetail - isLoading:', isLoading);
   console.log('UserDetail - error:', error);
+  
+  // Extract the actual user data from the response
+  const user = userResponse?.data;
 
   if (isLoading) {
     return (
@@ -32,7 +50,7 @@ export const UserDetailPage = () => {
     );
   }
 
-  if (error || !user) {
+  if (error || !userResponse || !user) {
     return (
       <div className="p-4 flex items-center justify-center min-h-[50vh]">
         <div className="text-center">
@@ -93,22 +111,22 @@ export const UserDetailPage = () => {
             <div className="flex items-start gap-4">
               <Avatar className="w-16 h-16">
                 <AvatarFallback className="text-lg">
-                  {user.name.split(' ').map(n => n[0]).join('')}
+                  {user.name ? user.name.split(' ').map(n => n[0]).join('') : 'U'}
                 </AvatarFallback>
               </Avatar>
               <div className="flex-1">
-                <CardTitle className="text-xl">{user.name}</CardTitle>
+                <CardTitle className="text-xl">{user.name || 'Unknown User'}</CardTitle>
                 <div className="flex items-center gap-2 mt-1">
-                  <Badge variant={getRoleColor(user.role) as any} className="flex items-center gap-1">
-                    {getRoleIcon(user.role)}
-                    {formatRole(user.role)}
+                  <Badge variant={getRoleColor(user.role || 'employee') as any} className="flex items-center gap-1">
+                    {getRoleIcon(user.role || 'employee')}
+                    {formatRole(user.role || 'employee')}
                   </Badge>
                   <Badge variant={user.isActive ? "default" : "secondary"}>
                     {user.isActive ? 'Active' : 'Inactive'}
                   </Badge>
                 </div>
-                {user.autoId && (
-                  <p className="text-sm text-muted-foreground mt-1">ID: {user.autoId}</p>
+                {(user.autoId || user.id || user._id) && (
+                  <p className="text-sm text-muted-foreground mt-1">ID: {user.autoId || user.id || user._id}</p>
                 )}
               </div>
             </div>
@@ -135,7 +153,7 @@ export const UserDetailPage = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Email</p>
-                <p className="font-medium">{user.email}</p>
+                <p className="font-medium">{user.email || 'No email provided'}</p>
               </div>
             </div>
             
@@ -145,7 +163,7 @@ export const UserDetailPage = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Mobile</p>
-                <p className="font-medium">{user.mobile}</p>
+                <p className="font-medium">{user.mobile || 'No mobile provided'}</p>
               </div>
             </div>
           </CardContent>
@@ -163,7 +181,7 @@ export const UserDetailPage = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Member Since</p>
-                <p className="font-medium">{formatDate(user.createdAt)}</p>
+                <p className="font-medium">{user.createdAt ? formatDate(user.createdAt) : 'Unknown'}</p>
               </div>
             </div>
             
@@ -173,7 +191,7 @@ export const UserDetailPage = () => {
               </div>
               <div>
                 <p className="text-sm text-muted-foreground">Access Level</p>
-                <p className="font-medium">{formatRole(user.role)}</p>
+                <p className="font-medium">{formatRole(user.role || 'employee')}</p>
               </div>
             </div>
           </CardContent>

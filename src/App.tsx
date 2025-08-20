@@ -8,6 +8,7 @@ import { useAuthStore } from "@/stores/auth";
 import { TenantHeader } from "@/components/layout/TenantHeader";
 import { RoleNav } from "@/components/layout/RoleNav";
 import { MobileLayout } from "@/components/layout/MobileLayout";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import { useEffect } from "react";
 
 // Pages
@@ -105,10 +106,11 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
+      <ThemeProvider>
+        <TooltipProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
           {/* Global header and bottom nav when authenticated */}
           <Routes>
             {/* Public Routes */}
@@ -195,7 +197,8 @@ const App = () => {
             {/* Fallback route */}
           </Routes>
         </BrowserRouter>
-      </TooltipProvider>
+        </TooltipProvider>
+      </ThemeProvider>
     </QueryClientProvider>
   );
 };
